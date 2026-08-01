@@ -1,0 +1,3245 @@
+<!DOCTYPE html>
+<html lang="tl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WebWise Studio — Code Runner</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs2015.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+<!-- Real engines behind the "Prettier" and "ESLint" extensions -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.9/beautify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.9/beautify-css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.9/beautify-html.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jshint/2.13.6/jshint.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #1e1e1e;
+    --sidebar-bg: #252526;
+    --activitybar-bg: #333333;
+    --titlebar-bg: #323233;
+    --statusbar-bg: #007acc;
+    --statusbar-bg-run: #16825d;
+    --tab-active-bg: #1e1e1e;
+    --tab-inactive-bg: #2d2d2d;
+    --panel-bg: #181818;
+    --border: #3c3c3c;
+    --border-soft: #2b2b2b;
+    --text: #cccccc;
+    --text-dim: #969696;
+    --text-bright: #ffffff;
+    --blue: #3794ff;
+    --blue-btn: #0e639c;
+    --blue-btn-hover: #1177bb;
+    --green: #3fb950;
+    --green-bright: #4ec9b0;
+    --red: #f14c4c;
+    --yellow: #cca700;
+    --list-hover: #2a2d2e;
+    --list-active: #37373d;
+    --list-active-border: #0e639c;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 13px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+
+  button { font-family: inherit; }
+
+  button:focus-visible, [tabindex]:focus-visible {
+    outline: 1px solid var(--blue);
+    outline-offset: -1px;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background: #5f5f5f; background-clip: padding-box; }
+
+  /* ============ APP SHELL ============ */
+  .app {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ============ TITLE BAR ============ */
+  .titlebar {
+    height: 34px;
+    flex-shrink: 0;
+    background: var(--titlebar-bg);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 10px;
+    position: relative;
+    z-index: 60;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .traffic-dots { display: flex; gap: 7px; margin-right: 4px; }
+  .traffic-dot { width: 11px; height: 11px; border-radius: 50%; }
+  .traffic-dot.red { background: #ff5f56; }
+  .traffic-dot.yellow { background: #ffbd2e; }
+  .traffic-dot.green { background: #27c93f; }
+
+  .menubar { display: flex; align-items: center; gap: 2px; }
+
+  .menubar-item {
+    padding: 5px 9px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+
+  .menubar-item:hover, .menubar-item.open { background: rgba(255,255,255,0.1); }
+
+  .titlebar-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12.5px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .titlebar-title .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px rgba(63,185,80,0.8);
+    animation: dotPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes dotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.75); }
+  }
+
+  .titlebar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+  .title-icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+  }
+  .title-icon-btn:hover { background: rgba(255,255,255,0.1); }
+
+  /* ============ MENU DROPDOWNS ============ */
+  .menu-dropdown-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    display: none;
+  }
+  .menu-dropdown-overlay.show { display: block; }
+
+  .menu-dropdown {
+    position: fixed;
+    top: 34px;
+    min-width: 240px;
+    background: #252526;
+    border: 1px solid var(--border);
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    z-index: 70;
+    display: none;
+    padding: 4px;
+    animation: menuPop 0.15s ease;
+  }
+  .menu-dropdown.show { display: block; }
+
+  @keyframes menuPop {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .menu-dd-item {
+    padding: 7px 10px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    white-space: nowrap;
+  }
+  .menu-dd-item:hover { background: var(--blue-btn); color: #fff; }
+  .menu-dd-item .kbd { color: var(--text-dim); font-size: 11px; }
+  .menu-dd-item:hover .kbd { color: rgba(255,255,255,0.75); }
+  .menu-dd-sep { height: 1px; background: var(--border); margin: 4px 6px; }
+
+  /* ============ WORKBENCH ============ */
+  .workbench {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+
+  /* ============ ACTIVITY BAR ============ */
+  .activitybar {
+    width: 48px;
+    flex-shrink: 0;
+    background: var(--activitybar-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+    gap: 4px;
+  }
+
+  .activity-icon {
+    position: relative;
+    overflow: hidden;
+    width: 48px;
+    height: 42px;
+    background: transparent;
+    border: none;
+    color: #858585;
+    font-size: 19px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease;
+  }
+  .activity-icon:hover { color: #ffffff; }
+  .activity-icon.active { color: #ffffff; }
+  .activity-icon.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 6px; bottom: 6px;
+    width: 2px;
+    background: #ffffff;
+    border-radius: 1px;
+  }
+  .activity-icon.run-accent { color: var(--green); }
+  .activity-icon.run-accent:hover { color: #6fe08c; }
+
+  .activitybar-spacer { flex: 1; }
+
+  /* ============ SIDEBAR ============ */
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-right: 1px solid var(--border-soft);
+    transition: width 0.15s ease, opacity 0.15s ease;
+  }
+  .sidebar.collapsed { width: 0; opacity: 0; border-right: none; overflow: hidden; }
+
+  .sidebar-header {
+    padding: 10px 16px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .sidebar-actions { display: flex; gap: 2px; }
+
+  .side-action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .side-action-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-bright); }
+
+  .sidebar-scroll { flex: 1; overflow-y: auto; }
+
+  .sb-section-header {
+    padding: 6px 10px 6px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .sb-section-header:hover { color: var(--text-bright); }
+  .sb-section-header .chev { font-size: 9px; width: 12px; display: inline-block; transition: transform 0.15s ease; color: var(--text-dim); }
+  .sb-section.collapsed .chev { transform: rotate(-90deg); }
+  .sb-section.collapsed .sb-section-body { display: none; }
+
+  .sb-section-body { padding-bottom: 6px; }
+
+  .tree-file {
+    padding: 4px 10px 4px 30px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    border-left: 2px solid transparent;
+  }
+  .tree-file:hover { background: var(--list-hover); }
+  .tree-file.active { background: var(--list-active); border-left-color: var(--list-active-border); }
+
+  .file-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: 800;
+    border-radius: 3px;
+    margin-right: 8px;
+    color: #16181d;
+    letter-spacing: -0.5px;
+  }
+  .icon-html { background: linear-gradient(135deg, #f0743a, #e34c26); color: #fff; }
+  .icon-css  { background: linear-gradient(135deg, #4c9bfa, #2965f1); color: #fff; }
+  .icon-js   { background: linear-gradient(135deg, #f5e35a, #efd81f); }
+  .icon-node { background: linear-gradient(135deg, #6cc47a, #3fa04a); color: #fff; }
+  .icon-json { background: linear-gradient(135deg, #e9d867, #cbb52f); }
+  .icon-file { background: #5f5f5f; color: #fff; }
+
+  .mode-item {
+    padding: 6px 10px 6px 20px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-left: 2px solid transparent;
+  }
+  .mode-item:hover { background: var(--list-hover); }
+  .mode-item.active { background: var(--list-active); border-left-color: var(--list-active-border); color: var(--text-bright); }
+  .mode-item .mode-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+  .mode-item .mode-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+  .new-badge {
+    font-size: 9px;
+    font-weight: 700;
+    background: rgba(63,185,80,0.18);
+    color: #6fe08c;
+    padding: 1px 6px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .sidebar-footer {
+    padding: 10px 14px;
+    font-size: 10.5px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    border-top: 1px solid var(--border-soft);
+    flex-shrink: 0;
+  }
+  .sidebar-footer strong { color: #9d9d9d; }
+
+  /* ============ SIDEBAR VIEWS (Explorer / Search / Extensions) ============ */
+  .sidebar-view { display: none; flex-direction: column; min-height: 0; flex: 1; }
+  .sidebar-view.active { display: flex; }
+
+  /* ---- Search view ---- */
+  .search-box-wrap { padding: 10px 12px 6px; flex-shrink: 0; }
+  .search-input-shell {
+    display: flex; align-items: center; gap: 6px;
+    background: #3c3c3c; border: 1px solid var(--border);
+    border-radius: 4px; padding: 0 4px 0 8px;
+  }
+  .search-input-shell:focus-within { border-color: var(--blue); }
+  .search-input-shell .si-icon { font-size: 12px; color: var(--text-dim); flex-shrink: 0; }
+  .search-input {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--text-bright); font-size: 12.5px; padding: 7px 4px;
+    font-family: var(--font-ui);
+  }
+  .search-clear-btn {
+    background: transparent; border: none; color: var(--text-dim);
+    width: 20px; height: 20px; border-radius: 3px; cursor: pointer;
+    display: none; align-items: center; justify-content: center; font-size: 11px;
+  }
+  .search-clear-btn.show { display: flex; }
+  .search-clear-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-bright); }
+  .search-toggles { display: flex; gap: 6px; padding: 6px 2px 0; }
+  .search-toggle-btn {
+    background: transparent; border: 1px solid transparent; color: var(--text-dim);
+    font-size: 10.5px; font-weight: 700; padding: 3px 7px; border-radius: 3px; cursor: pointer;
+  }
+  .search-toggle-btn:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+  .search-toggle-btn.active { background: rgba(55,148,255,0.18); border-color: rgba(55,148,255,0.5); color: #9dd0ff; }
+  .search-summary {
+    padding: 8px 14px 4px; font-size: 11px; color: var(--text-dim); flex-shrink: 0;
+    -webkit-user-select: none; user-select: none;
+  }
+  .search-results { flex: 1; overflow-y: auto; padding-bottom: 10px; }
+  .search-empty { padding: 22px 18px; text-align: center; color: var(--text-dim); font-size: 12px; line-height: 1.6; }
+  .search-empty .se-icon { font-size: 26px; display: block; margin-bottom: 8px; opacity: 0.6; }
+  .search-group { margin-bottom: 2px; }
+  .search-group-header {
+    padding: 5px 10px 5px 8px; font-size: 12px; font-weight: 600; color: var(--text-bright);
+    display: flex; align-items: center; gap: 6px; cursor: pointer; -webkit-user-select: none; user-select: none;
+  }
+  .search-group-header:hover { background: var(--list-hover); }
+  .search-group-header .sg-chev { font-size: 9px; color: var(--text-dim); width: 10px; transition: transform 0.15s ease; }
+  .search-group-header.collapsed .sg-chev { transform: rotate(-90deg); }
+  .search-group-header .sg-count {
+    margin-left: auto; font-size: 10.5px; color: var(--text-dim); background: rgba(255,255,255,0.08);
+    padding: 0 6px; border-radius: 10px; font-weight: 600;
+  }
+  .search-group-header.collapsed + .search-group-body { display: none; }
+  .search-result-line {
+    padding: 3px 12px 3px 34px; font-size: 12.5px; color: var(--text-dim); cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 8px;
+    border-left: 2px solid transparent; font-family: var(--font-mono);
+  }
+  .search-result-line:hover { background: var(--list-hover); color: var(--text); }
+  .search-result-line .srl-num { color: #5a7a99; flex-shrink: 0; min-width: 16px; text-align: right; font-family: var(--font-mono); }
+  .search-result-line mark { background: rgba(255,204,0,0.35); color: #fff; border-radius: 2px; padding: 0 1px; }
+
+  /* ---- Extensions view ---- */
+  .ext-search-wrap { padding: 10px 12px 8px; flex-shrink: 0; }
+  .ext-summary { padding: 0 14px 6px; font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+  .ext-list { flex: 1; overflow-y: auto; padding: 0 6px 12px; }
+  .ext-category-label {
+    padding: 10px 8px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px;
+    color: var(--text-dim); text-transform: uppercase;
+  }
+  .ext-card {
+    display: flex; gap: 10px; padding: 8px 8px; border-radius: 6px; cursor: default;
+    transition: background 0.12s ease;
+  }
+  .ext-card:hover { background: var(--list-hover); }
+  .ext-icon {
+    width: 34px; height: 34px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 800; color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+  .ext-body { flex: 1; min-width: 0; }
+  .ext-title-row { display: flex; align-items: baseline; gap: 6px; }
+  .ext-name { font-size: 12.5px; font-weight: 700; color: var(--text-bright); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ext-verified { color: var(--blue); font-size: 10.5px; flex-shrink: 0; }
+  .ext-publisher { font-size: 10.5px; color: var(--text-dim); margin-top: 1px; }
+  .ext-desc { font-size: 11px; color: var(--text); opacity: 0.85; margin-top: 3px; line-height: 1.4; }
+  .ext-stats-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+  .ext-stat { font-size: 10.5px; color: var(--text-dim); display: flex; align-items: center; gap: 3px; }
+  .ext-install-btn {
+    margin-left: auto; font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 3px;
+    cursor: pointer; border: 1px solid var(--blue-btn); background: var(--blue-btn); color: #fff;
+    transition: background 0.15s ease; flex-shrink: 0;
+  }
+  .ext-install-btn:hover { background: var(--blue-btn-hover); }
+  .ext-install-btn.installed {
+    background: transparent; border-color: var(--border); color: var(--text-dim);
+  }
+  .ext-install-btn.installed:hover { border-color: var(--red); color: var(--red); background: rgba(241,76,76,0.08); }
+  .ext-empty { padding: 22px 18px; text-align: center; color: var(--text-dim); font-size: 12px; line-height: 1.6; }
+  .CodeMirror .cm-search-flash { background: rgba(55,148,255,0.22); transition: background 0.3s ease; }
+
+  .activity-icon-badge {
+    position: absolute; bottom: 2px; right: 4px; background: var(--red); color: #fff;
+    font-size: 9px; font-weight: 700; min-width: 14px; height: 14px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1;
+  }
+
+  /* ============ EDITOR GROUP ============ */
+  .editor-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    background: var(--tab-active-bg);
+  }
+
+  .tabbar-row {
+    display: flex;
+    align-items: stretch;
+    background: var(--tab-inactive-bg);
+    border-bottom: 1px solid var(--border-soft);
+    flex-shrink: 0;
+  }
+
+  .tabbar {
+    flex: 1;
+    display: flex;
+    overflow-x: auto;
+    min-width: 0;
+  }
+
+  .tab {
+    position: relative;
+    overflow: hidden;
+    padding: 0 16px;
+    height: 36px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    background: var(--tab-inactive-bg);
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid var(--border-soft);
+    flex-shrink: 0;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+  .tab:hover { color: var(--text); background: #313131; }
+  .tab.active {
+    color: var(--text-bright);
+    background: var(--tab-active-bg);
+    box-shadow: inset 0 -2px 0 var(--blue);
+  }
+  .tab .tab-icon { margin-right: 8px; font-size: 12px; }
+  .tab.output-tab .tab-icon { color: var(--green); }
+
+  .tabbar-files { display: contents; }
+
+  .tabbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  .tab-action-btn {
+    position: relative;
+    overflow: hidden;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s ease;
+  }
+  .tab-action-btn:hover { background: rgba(255,255,255,0.09); }
+
+  .tab-action-btn.run {
+    color: #6fe08c;
+    font-weight: 600;
+  }
+  .tab-action-btn.run:hover { background: rgba(63,185,80,0.16); }
+  .tab-action-btn.run:disabled { opacity: 0.6; cursor: progress; }
+  .tab-action-btn.run.is-running .run-icon { display: inline-block; animation: spin 0.7s linear infinite; }
+
+  .tab-action-btn.ext-disabled { opacity: 0.35; }
+  .tab-action-btn.ext-disabled:hover { background: rgba(241,76,76,0.14); }
+
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  .ripple-effect {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.35);
+    transform: scale(0);
+    animation: rippleAnim 0.5s ease-out;
+    pointer-events: none;
+  }
+  @keyframes rippleAnim { to { transform: scale(1); opacity: 0; } }
+
+  /* ============ BREADCRUMBS ============ */
+  .breadcrumbs {
+    height: 26px;
+    flex-shrink: 0;
+    background: var(--tab-active-bg);
+    border-bottom: 1px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    font-size: 12px;
+    color: var(--text-dim);
+    gap: 6px;
+  }
+  .breadcrumbs .crumb-root { color: var(--text-dim); }
+  .breadcrumbs .crumb-sep { color: #5a5a5a; }
+  .breadcrumbs .crumb-current { color: var(--text); }
+
+  /* ============ EDITOR AREA ============ */
+  .editor-area {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  textarea { display: none; }
+
+  .cm-editor-wrap {
+    flex: 1;
+    display: none;
+    height: 100%;
+  }
+  .cm-editor-wrap.active { display: block; animation: panelFadeIn 0.18s ease; }
+
+  .CodeMirror {
+    height: 100% !important;
+    background: var(--bg) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 13.5px !important;
+    line-height: 1.6 !important;
+    padding-top: 4px;
+  }
+  .CodeMirror-gutters { background: var(--bg) !important; border-right: 1px solid var(--border-soft) !important; }
+  .CodeMirror-linenumber { color: #545454 !important; }
+  .CodeMirror-cursor { border-left: 2px solid #aeafad !important; }
+  .CodeMirror-selected { background: #264f78 !important; }
+  .CodeMirror-activeline-background { background: rgba(255,255,255,0.03) !important; }
+  .CodeMirror-matchingbracket { color: #ffd700 !important; font-weight: 700; }
+
+  iframe.preview {
+    flex: 1;
+    display: none;
+    border: none;
+    width: 100%;
+    background: #fff;
+  }
+  iframe.preview.active { display: block; animation: panelFadeIn 0.18s ease; }
+
+  @keyframes panelFadeIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Node.js terminal output */
+  .node-terminal {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    background: var(--bg);
+    padding: 16px;
+    overflow: auto;
+  }
+  .node-terminal.active { display: flex; animation: panelFadeIn 0.18s ease; }
+
+  .terminal-window {
+    background: #0c0c0c;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    background: #1a1a1a;
+    border-bottom: 1px solid #2a2a2a;
+    flex-shrink: 0;
+  }
+  .term-dot { width: 11px; height: 11px; border-radius: 50%; }
+  .term-dot.red { background: #ff5f56; }
+  .term-dot.yellow { background: #ffbd2e; }
+  .term-dot.green { background: #27c93f; }
+  .term-title { margin-left: 8px; color: var(--green-bright); font-size: 0.78rem; font-family: var(--font-mono); }
+
+  .terminal-body {
+    flex: 1;
+    padding: 14px 16px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.7;
+    color: #8ff0b0;
+    overflow: auto;
+  }
+  .term-line { white-space: pre-wrap; word-break: break-word; }
+  .term-line.term-hint { color: var(--text-dim); font-style: italic; }
+  .term-line.term-error { color: #ff8080; }
+  .term-prompt { color: var(--green-bright); }
+  .term-cursor {
+    display: inline-block; width: 7px; height: 1em;
+    background: #7ee6c0; vertical-align: text-bottom;
+    animation: blink 1s steps(1) infinite; margin-left: 2px;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* JSON output */
+  .json-output {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    overflow: auto;
+    padding: 16px;
+    background: var(--bg);
+  }
+  .json-output.active { display: flex; animation: panelFadeIn 0.18s ease; }
+
+  .json-banner {
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .json-banner.hint { background: rgba(150,150,150,0.1); color: var(--text-dim); font-weight: 500; }
+  .json-banner.success { background: rgba(63,185,80,0.12); color: #6fe08c; border: 1px solid rgba(63,185,80,0.3); }
+  .json-banner.danger { background: rgba(241,76,76,0.12); color: #ff9999; border: 1px solid rgba(241,76,76,0.3); }
+
+  .json-pre {
+    flex: 1;
+    margin: 0;
+    overflow: auto;
+    background: #16181c;
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid var(--border-soft);
+  }
+  .json-pre code.hljs {
+    background: transparent !important;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    line-height: 1.65;
+  }
+
+  /* ============ BOTTOM PANEL ============ */
+  .panel {
+    height: 26%;
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border);
+    background: var(--panel-bg);
+    flex-shrink: 0;
+    transition: height 0.15s ease, min-height 0.15s ease;
+  }
+  .panel.collapsed { height: 36px; min-height: 36px; }
+  .panel.collapsed .console-body { display: none; }
+
+  .panel-header {
+    display: flex;
+    align-items: stretch;
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--border-soft);
+    flex-shrink: 0;
+  }
+
+  .panel-tabs { display: flex; flex: 1; }
+
+  .panel-tab {
+    padding: 0 14px;
+    height: 35px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    border-bottom: 1px solid transparent;
+    transition: color 0.15s ease;
+  }
+  .panel-tab:hover { color: var(--text); }
+  .panel-tab.active { color: var(--text-bright); border-bottom-color: var(--blue); }
+
+  .problem-badge {
+    background: var(--red);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0px 5px;
+    border-radius: 8px;
+    line-height: 1.5;
+  }
+
+  .panel-actions { display: flex; align-items: center; gap: 2px; padding: 0 8px; }
+
+  .panel-action-btn {
+    position: relative;
+    overflow: hidden;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .panel-action-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-bright); }
+
+  .console-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 16px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+  }
+
+  .console-line {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 5px;
+    color: #cfe8d8;
+    animation: panelFadeIn 0.15s ease;
+  }
+  .console-line.error-line { color: var(--red); }
+  .console-line.warn-line { color: var(--yellow); }
+  .console-line .icon { flex-shrink: 0; font-weight: bold; }
+  .empty-hint { color: var(--text-dim); font-style: italic; }
+
+  /* ============ STATUS BAR ============ */
+  .statusbar {
+    height: 22px;
+    flex-shrink: 0;
+    background: var(--statusbar-bg);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 11.5px;
+    color: #ffffff;
+    -webkit-user-select: none;
+    user-select: none;
+    transition: background 0.2s ease;
+  }
+  .statusbar.running { background: var(--yellow); color: #1e1e1e; }
+  .statusbar.err { background: var(--red); }
+
+  .status-left, .status-right { display: flex; align-items: center; height: 100%; }
+  .status-right { margin-left: auto; }
+
+  .status-item {
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 100%;
+    cursor: default;
+    white-space: nowrap;
+  }
+  .status-item.clickable { cursor: pointer; }
+  .status-item.clickable:hover { background: rgba(255,255,255,0.12); }
+
+  /* ============ TOAST ============ */
+  .toast {
+    position: fixed;
+    bottom: 34px;
+    left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    background: #202124;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    border: 1px solid var(--border);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--green); background: rgba(63,185,80,0.12); color: #7ee6c0; }
+  .toast.danger { border-color: var(--red); background: rgba(241,76,76,0.12); color: #ff9999; }
+
+  /* ============ MODALS (confirm / prompt / view code) ============ */
+  .confirm-overlay, .viewhtml-overlay, .palette-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 250;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(2px);
+  }
+  .confirm-overlay.show, .viewhtml-overlay.show, .palette-overlay.show { display: flex; }
+  .palette-overlay { align-items: flex-start; padding-top: 90px; }
+
+  .confirm-panel {
+    background: #252526;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    width: 100%;
+    max-width: 340px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    animation: modalPop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes modalPop { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+  .confirm-message { color: var(--text); font-size: 0.92rem; margin-bottom: 16px; line-height: 1.5; text-align: center; }
+  .confirm-actions { display: flex; gap: 8px; justify-content: center; }
+
+  .prompt-label { color: var(--text); font-size: 0.92rem; margin-bottom: 10px; line-height: 1.5; text-align: center; }
+  .prompt-input-wrap {
+    display: flex; align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0 4px 0 12px;
+    margin-bottom: 16px;
+    transition: border-color 0.15s ease;
+  }
+  .prompt-input-wrap:focus-within { border-color: var(--blue); }
+  .prompt-input {
+    flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+    color: var(--text); font-family: var(--font-mono); font-size: 0.92rem; padding: 9px 0;
+  }
+  .prompt-ext { color: var(--text-dim); font-family: var(--font-mono); font-size: 0.88rem; padding-right: 8px; white-space: nowrap; }
+  .prompt-error { color: var(--red); font-size: 0.78rem; margin: -10px 0 14px; text-align: center; min-height: 1em; }
+
+  .pill {
+    position: relative;
+    overflow: hidden;
+    background: #3a3d41;
+    color: var(--text);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .pill:hover { background: #45494e; }
+  .pill.primary { background: var(--blue-btn); color: #fff; }
+  .pill.primary:hover { background: var(--blue-btn-hover); }
+  .pill.clear { background: var(--red); color: #fff; }
+  .pill.clear:hover { background: #d13c3c; }
+
+  .viewhtml-panel {
+    background: #1e1e1e;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 100%;
+    max-width: 900px;
+    height: 82vh;
+    max-height: 720px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    animation: modalPop 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .viewhtml-header {
+    padding: 12px 16px;
+    background: var(--titlebar-bg);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .viewhtml-close {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+  }
+  .viewhtml-close:hover { background: var(--red); }
+
+  .viewhtml-tabs { display: flex; background: var(--tab-inactive-bg); border-bottom: 1px solid var(--border-soft); }
+  .viewhtml-tab {
+    padding: 11px 20px; font-size: 0.82rem; font-weight: 600; color: var(--text-dim);
+    background: transparent; border: none; cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all 0.2s ease;
+  }
+  .viewhtml-tab:hover { color: var(--text); }
+  .viewhtml-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+  .viewhtml-body { flex: 1; display: flex; min-height: 0; position: relative; }
+  .vh-panel { flex: 1; display: none; min-height: 0; }
+  .vh-panel.active { display: flex; animation: panelFadeIn 0.2s ease; }
+  .vh-preview-frame { border: none; width: 100%; background: #fff; }
+  .vh-code-panel { position: relative; overflow: hidden; }
+  .vh-pre { margin: 0; flex: 1; overflow: auto; padding: 18px; width: 100%; }
+  .vh-pre code.hljs { background: transparent !important; font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.65; }
+
+  .vh-code-actions { position: absolute; top: 14px; right: 14px; z-index: 5; display: flex; gap: 8px; }
+  .vh-copy-btn {
+    background: rgba(255,255,255,0.08); color: #e5edf5; border: 1px solid rgba(255,255,255,0.15);
+    padding: 7px 13px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+    backdrop-filter: blur(4px); transition: all 0.2s ease; white-space: nowrap;
+  }
+  .vh-copy-btn:hover { background: rgba(255,255,255,0.18); }
+  .vh-copy-btn.copied { background: var(--green); color: #052b12; border-color: var(--green); }
+  .vh-generate-btn { background: rgba(255, 215, 130, 0.14); border-color: rgba(255, 215, 130, 0.3); color: #ffe4a8; }
+  .vh-generate-btn:hover { background: #f5a623; color: #052b12; border-color: #f5a623; }
+  .vh-generate-btn.generated { background: var(--green); color: #052b12; border-color: var(--green); }
+
+  /* ============ COMMAND PALETTE ============ */
+  .palette-panel {
+    background: #252526;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 100%;
+    max-width: 560px;
+    box-shadow: 0 20px 70px rgba(0,0,0,0.7);
+    overflow: hidden;
+    animation: modalPop 0.18s ease;
+  }
+  .palette-input {
+    width: 100%;
+    background: #3c3c3c;
+    border: none;
+    outline: none;
+    color: var(--text-bright);
+    font-size: 14px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .palette-list { max-height: 360px; overflow-y: auto; padding: 4px; }
+  .palette-item {
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+  .palette-item .pi-icon { width: 18px; text-align: center; flex-shrink: 0; opacity: 0.85; }
+  .palette-item .pi-label { flex: 1; }
+  .palette-item .pi-kbd { font-size: 11px; color: var(--text-dim); }
+  .palette-item:hover, .palette-item.highlighted { background: var(--blue-btn); color: #fff; }
+  .palette-item:hover .pi-kbd, .palette-item.highlighted .pi-kbd { color: rgba(255,255,255,0.8); }
+  .palette-empty { padding: 16px; text-align: center; color: var(--text-dim); font-size: 12.5px; }
+
+  /* ============ ABOUT MODAL ============ */
+  .about-body { text-align: left; }
+  .about-body h3 { color: var(--text-bright); font-size: 1rem; margin-bottom: 8px; }
+  .about-body p { color: var(--text-dim); font-size: 0.85rem; line-height: 1.6; margin-bottom: 6px; }
+  .about-body strong { color: #9dd8ff; }
+
+  /* ============ GO LIVE MODAL ============ */
+  .golive-body { text-align: left; }
+  .golive-body h3 { color: var(--text-bright); font-size: 1rem; margin-bottom: 10px; }
+  .golive-body p { color: var(--text-dim); font-size: 0.85rem; line-height: 1.6; margin-bottom: 10px; }
+  .golive-body strong { color: #9dd8ff; }
+  .golive-steps { list-style: none; counter-reset: golive-step; padding: 0; margin-bottom: 10px; }
+  .golive-steps li {
+    counter-increment: golive-step;
+    position: relative;
+    padding: 6px 0 6px 30px;
+    color: var(--text);
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+  .golive-steps li::before {
+    content: counter(golive-step);
+    position: absolute;
+    left: 0; top: 6px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--blue-btn);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .golive-code {
+    display: inline-block;
+    background: var(--panel-bg);
+    border: 1px solid var(--border);
+    color: var(--green-bright);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 860px) {
+    .sidebar { position: fixed; top: 34px; bottom: 22px; left: 48px; z-index: 55; box-shadow: 8px 0 24px rgba(0,0,0,0.4); }
+    .sidebar.collapsed { width: 0; }
+    .titlebar-title { display: none; }
+    .menubar-item:nth-child(4), .menubar-item:nth-child(5), .menubar-item:nth-child(6) { display: none; }
+  }
+  @media (max-width: 600px) {
+    .menubar { display: none; }
+    .status-right .status-item:nth-child(3), .status-right .status-item:nth-child(4), .status-right .status-item:nth-child(5) { display: none; }
+    .tab { padding: 0 12px; }
+  }
+</style>
+</head>
+<body data-mode="web">
+<div class="app">
+
+  <!-- ============ TITLE BAR ============ -->
+  <div class="titlebar">
+    <div class="traffic-dots">
+      <span class="traffic-dot red"></span><span class="traffic-dot yellow"></span><span class="traffic-dot green"></span>
+    </div>
+    <nav class="menubar" id="menubar">
+      <div class="menubar-item" data-menu="file">File</div>
+      <div class="menubar-item" data-menu="edit">Edit</div>
+      <div class="menubar-item" data-menu="view">View</div>
+      <div class="menubar-item" data-menu="run">Run</div>
+      <div class="menubar-item" data-menu="terminal">Terminal</div>
+      <div class="menubar-item" data-menu="help">Help</div>
+    </nav>
+    <div class="titlebar-title"><span class="dot"></span>WebWise Studio — Code Runner</div>
+    <div class="titlebar-right">
+      <button class="title-icon-btn" id="paletteBtn" title="Command Palette (Ctrl+Shift+P)">⌘</button>
+    </div>
+  </div>
+
+  <!-- MENU DROPDOWNS -->
+  <div class="menu-dropdown-overlay" id="menuDropdownOverlay"></div>
+
+  <div class="menu-dropdown" id="dd-file">
+    <div class="menu-dd-item" data-cmd="new-web">🌐 New Web Project</div>
+    <div class="menu-dd-item" data-cmd="new-css">🎨 New CSS Playground</div>
+    <div class="menu-dd-item" data-cmd="new-node">🟢 New Node Script</div>
+    <div class="menu-dd-item" data-cmd="new-json">📋 New JSON File</div>
+    <div class="menu-dd-sep"></div>
+    <div class="menu-dd-item" data-cmd="download">Download / Export... <span class="kbd">Ctrl+S</span></div>
+    <div class="menu-dd-item" data-cmd="view-full">View Full Code</div>
+  </div>
+
+  <div class="menu-dropdown" id="dd-edit">
+    <div class="menu-dd-item" data-cmd="undo">↩ Undo <span class="kbd">Ctrl+Z</span></div>
+    <div class="menu-dd-item" data-cmd="redo">↪ Redo <span class="kbd">Ctrl+Y</span></div>
+    <div class="menu-dd-sep"></div>
+    <div class="menu-dd-item" data-cmd="format-doc">✨ Format Document <span class="kbd">Shift+Alt+F</span></div>
+    <div class="menu-dd-item" data-cmd="clear-code">🗑 Clear Code</div>
+  </div>
+
+  <div class="menu-dropdown" id="dd-view">
+    <div class="menu-dd-item" data-cmd="toggle-sidebar">Explorer <span class="kbd">Ctrl+B</span></div>
+    <div class="menu-dd-item" data-cmd="view-search">🔍 Search <span class="kbd">Ctrl+Shift+F</span></div>
+    <div class="menu-dd-item" data-cmd="view-extensions">🧩 Extensions <span class="kbd">Ctrl+Shift+X</span></div>
+    <div class="menu-dd-item" data-cmd="toggle-panel">Terminal Panel <span class="kbd">Ctrl+`</span></div>
+    <div class="menu-dd-item" data-cmd="palette">Command Palette <span class="kbd">Ctrl+Shift+P</span></div>
+    <div class="menu-dd-sep"></div>
+    <div class="menu-dd-item" data-cmd="view-output">🖥️ Output</div>
+    <div class="menu-dd-item" data-cmd="view-problems">⚠️ Problems</div>
+  </div>
+
+  <div class="menu-dropdown" id="dd-run">
+    <div class="menu-dd-item" data-cmd="run">▷ Run Code <span class="kbd">Ctrl+Enter</span></div>
+    <div class="menu-dd-item" data-cmd="go-live">🌐 Go Live (localhost:8000)</div>
+    <div class="menu-dd-item" data-cmd="clear-code">🗑 Clear Code</div>
+  </div>
+
+  <div class="menu-dropdown" id="dd-terminal">
+    <div class="menu-dd-item" data-cmd="new-terminal">＋ New Terminal</div>
+    <div class="menu-dd-item" data-cmd="clear-terminal">🗑 Clear Terminal</div>
+  </div>
+
+  <div class="menu-dropdown" id="dd-help">
+    <div class="menu-dd-item" data-cmd="about">ℹ️ About WebWise Studio</div>
+    <div class="menu-dd-item" data-cmd="docs">📖 Documentation</div>
+  </div>
+
+  <!-- ============ WORKBENCH ============ -->
+  <div class="workbench">
+
+    <!-- ACTIVITY BAR -->
+    <div class="activitybar">
+      <button class="activity-icon active" id="actExplorer" title="Explorer (Ctrl+B)">📁</button>
+      <button class="activity-icon" id="actSearch" title="Search (Ctrl+Shift+F)">🔍</button>
+      <button class="activity-icon run-accent" id="actRun" title="Run Code (Ctrl+Enter)">▷</button>
+      <button class="activity-icon" id="actExtensions" title="Extensions (Ctrl+Shift+X)">🧩<span class="activity-icon-badge" id="extCountBadge">3</span></button>
+      <div class="activitybar-spacer"></div>
+      <button class="activity-icon" id="actAbout" title="About">👤</button>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span id="sidebarHeaderLabel">EXPLORER</span>
+        <div class="sidebar-actions" id="sidebarHeaderActions">
+          <button class="side-action-btn" id="sbClearBtn" title="Clear Code">🗑</button>
+          <button class="side-action-btn" id="sbDownloadBtn" title="Download">⬇</button>
+        </div>
+      </div>
+
+      <!-- ===== EXPLORER VIEW ===== -->
+      <div class="sidebar-view active" id="sidebarViewExplorer">
+        <div class="sidebar-scroll">
+          <div class="sb-section" id="sectionWorkspace">
+            <div class="sb-section-header" data-section="sectionWorkspace"><span class="chev">▾</span>WEBWISE-PLAYGROUND</div>
+            <div class="sb-section-body" id="fileTree"></div>
+          </div>
+          <div class="sb-section" id="sectionModes">
+            <div class="sb-section-header" data-section="sectionModes"><span class="chev">▾</span>WORKSPACES</div>
+            <div class="sb-section-body">
+              <div class="mode-item active" data-mode="web" tabindex="0"><span class="mode-icon">🌐</span><span class="mode-label">Web (HTML+CSS+JS)</span><span class="new-badge">✨ Bago</span></div>
+              <div class="mode-item" data-mode="css" tabindex="0"><span class="mode-icon">🎨</span><span class="mode-label">CSS Playground</span></div>
+              <div class="mode-item" data-mode="node" tabindex="0"><span class="mode-icon">🟢</span><span class="mode-label">Node.js Runtime</span><span class="new-badge">✨ Bago</span></div>
+              <div class="mode-item" data-mode="json" tabindex="0"><span class="mode-icon">📋</span><span class="mode-label">JSON Formatter</span><span class="new-badge">✨ Bago</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="sidebar-footer">Web · CSS · Node &amp; JSON playground<br>ginawa ni <strong>SlaveDevvision</strong></div>
+      </div>
+
+      <!-- ===== SEARCH VIEW ===== -->
+      <div class="sidebar-view" id="sidebarViewSearch">
+        <div class="search-box-wrap">
+          <div class="search-input-shell">
+            <span class="si-icon">🔍</span>
+            <input type="text" class="search-input" id="searchInput" placeholder="Maghanap sa lahat ng files..." autocomplete="off" spellcheck="false">
+            <button class="search-clear-btn" id="searchClearBtn" title="Clear">✕</button>
+          </div>
+          <div class="search-toggles">
+            <button class="search-toggle-btn active" id="searchScopeAll" data-scope="all">Buong Workspace</button>
+            <button class="search-toggle-btn" id="searchScopeCurrent" data-scope="current">Kasalukuyang Workspace</button>
+          </div>
+        </div>
+        <div class="search-summary" id="searchSummary">I-type para maghanap sa lahat ng files (HTML, CSS, JS, Node, JSON).</div>
+        <div class="search-results" id="searchResults"></div>
+      </div>
+
+      <!-- ===== EXTENSIONS VIEW ===== -->
+      <div class="sidebar-view" id="sidebarViewExtensions">
+        <div class="ext-search-wrap">
+          <div class="search-input-shell">
+            <span class="si-icon">🔍</span>
+            <input type="text" class="search-input" id="extSearchInput" placeholder="Maghanap sa Marketplace..." autocomplete="off" spellcheck="false">
+            <button class="search-clear-btn" id="extSearchClearBtn" title="Clear">✕</button>
+          </div>
+        </div>
+        <div class="ext-summary" id="extSummary"></div>
+        <div class="ext-list" id="extList"></div>
+      </div>
+    </div>
+
+    <!-- EDITOR GROUP -->
+    <div class="editor-group">
+      <div class="tabbar-row">
+        <div class="tabbar" id="fileTabs">
+          <div class="tab output-tab active" id="tabOutput" data-tab="output"><span class="tab-icon">▶</span>Output</div>
+          <div class="tabbar-files" id="dynamicFileTabs"></div>
+        </div>
+        <div class="tabbar-actions">
+          <button class="tab-action-btn run" id="runBtn" title="Run Code (Ctrl+Enter)"><span class="run-icon">▷</span><span class="run-label">Run</span></button>
+          <button class="tab-action-btn" id="formatBtn" title="Format Document — kailangan ng Prettier extension (Shift+Alt+F)">✨</button>
+          <button class="tab-action-btn" id="goLiveBtn" title="Go Live — mag-download ng tunay na server.js (patakbuhin: node server.js → http://localhost:8000)">🌐</button>
+          <button class="tab-action-btn" id="viewHtmlBtn" title="View Full Code">⤢</button>
+          <button class="tab-action-btn" id="quickGenerateBtn" title="Download">⬇</button>
+        </div>
+      </div>
+
+      <div class="breadcrumbs" id="activeFileName"></div>
+
+      <!-- EDITOR AREA -->
+      <div class="editor-area">
+        <textarea id="htmlInput" spellcheck="false">&lt;div class="card"&gt;
+  &lt;h1&gt;Kamusta! 👋&lt;/h1&gt;
+  &lt;p&gt;I-edit mo ako at pindutin ang Run.&lt;/p&gt;
+  &lt;button id="myBtn"&gt;Click me&lt;/button&gt;
+  &lt;h2&gt;Items mula sa data.json:&lt;/h2&gt;
+  &lt;ul id="itemsList"&gt;&lt;/ul&gt;
+&lt;/div&gt;</textarea>
+
+        <textarea id="cssInput" spellcheck="false">body {
+  font-family: 'Segoe UI', sans-serif;
+  padding: 20px;
+  color: #333;
+  background: linear-gradient(135deg, #f5f7fa, #e9ecef);
+}
+
+h1 {
+  color: #6a5cff;
+  margin-bottom: 12px;
+}
+
+.card {
+  max-width: 400px;
+  margin: 40px auto;
+  padding: 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+#myBtn {
+  background: linear-gradient(135deg, #6a5cff, #b25cff);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+#myBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(106, 92, 255, 0.4);
+}</textarea>
+
+        <textarea id="jsInput" spellcheck="false">document.getElementById('myBtn').addEventListener('click', function() {
+  const h1 = document.querySelector('h1');
+  h1.textContent = 'Ang code mo ay gumagana! 🎉';
+  console.log('Button clicked!');
+
+  this.style.opacity = '0.7';
+  setTimeout(() => {
+    this.style.opacity = '1';
+  }, 200);
+});
+
+// "data" (mula sa data.json) at "getGreeting" (mula sa server.js)
+// ay parehong available na dito dahil pinagsama na sila ng Web mode.
+console.log(getGreeting(data.site));
+const list = document.getElementById('itemsList');
+if (list && data.items) {
+  data.items.forEach((item) => {
+    const li = document.createElement('li');
+    li.textContent = item.name + ' — ₱' + item.price;
+    list.appendChild(li);
+  });
+}</textarea>
+
+        <textarea id="webNodeInput" spellcheck="false">// server.js — Node-style helper script na tumatakbo KASABAY ng iyong
+// index.html/style.css/script.js. Puwede kang gumawa dito ng mga function
+// na parang backend logic (data processing, validation, formatting, atbp.)
+// gamit ang Node-style console/process/require shims. Ang mga function at
+// variable dito ay pwedeng gamitin sa script.js dahil iisang page silang tinatakbo.
+
+function getGreeting(siteName) {
+  return `👋 Kamusta! Ito ang "${siteName}", pinagana ng server.js + data.json.`;
+}
+
+console.log('[server] Node helper loaded. process.version:', process.version);
+console.log('[server] Nag-load ng', (data.items ? data.items.length : 0), 'items mula sa data.json');</textarea>
+
+        <textarea id="webJsonInput" spellcheck="false">{
+  "site": "WebWise Playground",
+  "items": [
+    { "id": 1, "name": "Item Uno", "price": 99 },
+    { "id": 2, "name": "Item Dos", "price": 149 },
+    { "id": 3, "name": "Item Tres", "price": 199 }
+  ]
+}</textarea>
+
+        <textarea id="cssOnlyInput" spellcheck="false">.card {
+  max-width: 320px;
+  margin: 40px auto;
+  padding: 24px;
+  background: linear-gradient(135deg, #f4f4ff, #e8e6ff);
+  border-radius: 14px;
+  border-left: 4px solid #6a5cff;
+  text-align: center;
+  font-family: sans-serif;
+  box-shadow: 0 4px 12px rgba(106, 92, 255, 0.15);
+}
+
+.card h1 {
+  color: #6a5cff;
+  font-size: 2em;
+  margin-bottom: 10px;
+}
+
+.card p {
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.btn {
+  background: linear-gradient(135deg, #6a5cff, #9c4fe6);
+  color: #fff;
+  border: none;
+  padding: 11px 24px;
+  border-radius: 8px;
+  margin-top: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(106, 92, 255, 0.3);
+}
+
+.btn:active {
+  transform: translateY(-1px);
+}</textarea>
+
+        <textarea id="nodeInput" spellcheck="false">// Node.js-style playground (sandboxed, walang access sa file system/network)
+function greet(name) {
+  return `Kamusta, ${name}! 👋`;
+}
+
+console.log(greet('Developer'));
+
+const numbers = [1, 2, 3, 4, 5];
+const total = numbers.reduce((a, b) => a + b, 0);
+console.log('Total:', total);
+
+async function delayedMessage() {
+  await new Promise((res) => setTimeout(res, 400));
+  console.log('Async/await gumagana rin dito! ⏱️');
+}
+delayedMessage();</textarea>
+
+        <textarea id="jsonInput" spellcheck="false">{
+  "project": "WebWise Playground",
+  "version": "2.0.0",
+  "features": ["Web Mode", "CSS Playground", "Node.js Runtime", "JSON Formatter"],
+  "author": {
+    "name": "SlaveDevvision",
+    "role": "Creator"
+  },
+  "active": true
+}</textarea>
+
+        <iframe id="preview" class="preview active" title="Live preview"></iframe>
+
+        <div class="node-terminal" id="nodeTerminal">
+          <div class="terminal-window">
+            <div class="terminal-header">
+              <span class="term-dot red"></span><span class="term-dot yellow"></span><span class="term-dot green"></span>
+              <span class="term-title">node script.js</span>
+            </div>
+            <div class="terminal-body" id="terminalBody">
+              <div class="term-line term-hint">💡 Pindutin ang <strong>Run</strong> (o Ctrl+Enter) para patakbuhin ang script.js sa sandboxed Node-style console.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="json-output" id="jsonOutputPanel">
+          <div class="json-banner hint" id="jsonBanner">💡 Mag-type ng JSON sa Code tab, pindutin ang Run (o Ctrl+Enter) para i-validate at i-format.</div>
+          <pre class="json-pre"><code class="language-json" id="jsonOutputCode"></code></pre>
+        </div>
+      </div>
+
+      <!-- BOTTOM PANEL -->
+      <div class="panel" id="bottomPanel">
+        <div class="panel-header">
+          <div class="panel-tabs">
+            <div class="panel-tab active" id="consoleTabBtn">TERMINAL</div>
+            <div class="panel-tab" id="errorTabBtn">PROBLEMS <span class="problem-badge" id="problemBadge" style="display:none">0</span></div>
+            <div class="panel-tab" id="todoTabBtn" style="display:none">TODOS <span class="problem-badge" id="todoBadge" style="display:none">0</span></div>
+          </div>
+          <div class="panel-actions">
+            <button class="panel-action-btn" id="panelClearBtn" title="Clear Terminal">🗑</button>
+            <button class="panel-action-btn" id="panelToggleBtn" title="Toggle Panel (Ctrl+`)">▁</button>
+          </div>
+        </div>
+        <div class="console-body" id="consoleBody">
+          <div class="empty-hint">Wala pang output. Pindutin ang Run.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ STATUS BAR ============ -->
+  <div class="statusbar" id="statusbar">
+    <div class="status-left">
+      <span class="status-item">🌿 main</span>
+      <span class="status-item clickable" id="statusErrors" title="Problems">✖ 0</span>
+      <span class="status-item" id="statusWarnings">⚠ 0</span>
+    </div>
+    <div class="status-right">
+      <span class="status-item clickable" id="statusLiveServer" title="Go Live — mag-download ng server.js (node server.js)" style="display:none">🔴 Go Live</span>
+      <span class="status-item" id="statusRunState">⚡ Ready</span>
+      <span class="status-item" id="statusCursor">Ln 1, Col 1</span>
+      <span class="status-item" id="statusLang">HTML</span>
+      <span class="status-item">Spaces: 2</span>
+      <span class="status-item">UTF-8</span>
+      <span class="status-item">🔔</span>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- COMMAND PALETTE -->
+<div class="palette-overlay" id="paletteOverlay">
+  <div class="palette-panel">
+    <input class="palette-input" id="paletteInput" placeholder="Type a command ('>' Run, Clear, Switch mode...)" autocomplete="off" autocapitalize="off" spellcheck="false" />
+    <div class="palette-list" id="paletteList"></div>
+  </div>
+</div>
+
+<!-- CUSTOM CONFIRM MODAL -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-panel">
+    <div class="confirm-message" id="confirmMessage">Sigurado ka ba?</div>
+    <div class="confirm-actions">
+      <button class="pill" id="confirmCancelBtn">Cancel</button>
+      <button class="pill clear" id="confirmOkBtn">Oo, i-clear</button>
+    </div>
+  </div>
+</div>
+
+<!-- FILENAME PROMPT MODAL -->
+<div class="confirm-overlay" id="filenamePromptOverlay">
+  <div class="confirm-panel">
+    <div class="prompt-label" id="filenamePromptLabel">Anong ipapangalan sa file?</div>
+    <div class="prompt-input-wrap">
+      <input type="text" class="prompt-input" id="filenamePromptInput" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <span class="prompt-ext" id="filenamePromptExt">.html</span>
+    </div>
+    <div class="prompt-error" id="filenamePromptError"></div>
+    <div class="confirm-actions">
+      <button class="pill" id="filenamePromptCancelBtn">Cancel</button>
+      <button class="pill primary" id="filenamePromptOkBtn">⬇️ I-download</button>
+    </div>
+  </div>
+</div>
+
+<!-- ABOUT MODAL -->
+<div class="confirm-overlay" id="aboutOverlay">
+  <div class="confirm-panel" style="max-width:380px;">
+    <div class="about-body">
+      <h3>🧠 WebWise Studio</h3>
+      <p>Isang VS Code-inspired na code runner: <strong>Web (HTML+CSS+JS+Node+JSON)</strong>, <strong>CSS Playground</strong>, <strong>Node.js Runtime</strong>, at <strong>JSON Formatter</strong> — lahat tumatakbo diretso sa browser, walang backend.</p>
+      <p>Shortcuts: <strong>Ctrl+Enter</strong> Run · <strong>Ctrl+B</strong> Explorer · <strong>Ctrl+`</strong> Terminal · <strong>Ctrl+Shift+P</strong> Command Palette · <strong>Ctrl+S</strong> Download</p>
+      <p>Ginawa ni <strong>SlaveDevvision</strong>.</p>
+    </div>
+    <div class="confirm-actions" style="margin-top:14px;">
+      <button class="pill primary" id="aboutCloseBtn">Sarado</button>
+    </div>
+  </div>
+</div>
+
+<!-- GO LIVE INSTRUCTIONS MODAL -->
+<div class="confirm-overlay" id="goLiveOverlay">
+  <div class="confirm-panel" style="max-width:400px;">
+    <div class="golive-body">
+      <h3>🌐 Go Live — na-download ang server.js</h3>
+      <p>Ito ay <strong>tunay na gumaganang server</strong>, hindi simulation. Sundin lang ang mga hakbang para talagang mabuksan sa <span class="golive-code">http://localhost:8000</span>.</p>
+      <ol class="golive-steps">
+        <li>Kung wala ka pang Node.js, i-download muna (libre) sa <strong>nodejs.org</strong></li>
+        <li>Buksan ang terminal sa folder kung saan na-save ang <span class="golive-code">server.js</span> (kadalasan: Downloads)</li>
+        <li>Patakbuhin: <span class="golive-code">node server.js</span></li>
+        <li>I-paste ang <span class="golive-code">http://localhost:8000</span> sa kahit anong browser</li>
+      </ol>
+      <p>Gagana ito sa Windows, Mac, at Linux. Pwede mo ring i-paste ang link sa ibang tab o ibang device sa parehong network habang tumatakbo ang server.</p>
+    </div>
+    <div class="confirm-actions" style="margin-top:6px;">
+      <button class="pill primary" id="goLiveCloseBtn">Nakuha ko!</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW CODE MODAL -->
+<div class="viewhtml-overlay" id="viewHtmlOverlay">
+  <div class="viewhtml-panel">
+    <div class="viewhtml-header">
+      <span class="viewhtml-title" id="viewHtmlTitle">📄 Combined Website</span>
+      <button class="viewhtml-close" id="viewHtmlClose">✕</button>
+    </div>
+    <div class="viewhtml-tabs">
+      <button class="viewhtml-tab active" id="vhTabPreview">🖥️ Live Preview</button>
+      <button class="viewhtml-tab" id="vhTabCode">📄 Code</button>
+    </div>
+    <div class="viewhtml-body">
+      <iframe id="vhPreviewFrame" class="vh-panel vh-preview-frame active" title="Live preview ng combined HTML"></iframe>
+      <div id="vhCodePanel" class="vh-panel vh-code-panel">
+        <div class="vh-code-actions">
+          <button class="vh-copy-btn" id="vhCopyBtn">📋 Copy Code</button>
+          <button class="vh-copy-btn vh-generate-btn" id="vhGenerateBtn">⬇️ I-generate</button>
+        </div>
+        <pre class="vh-pre"><code id="vhCodeEl" class="language-html"></code></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ========== CODEMIRROR EDITOR WRAPPER ==========
+  function createEditor(textareaId, cmMode) {
+    const ta = document.getElementById(textareaId);
+    const cm = CodeMirror.fromTextArea(ta, {
+      mode: cmMode,
+      theme: 'material-darker',
+      lineNumbers: true,
+      lineWrapping: true,
+      matchBrackets: true,
+      autoCloseBrackets: true,
+      styleActiveLine: true,
+      tabSize: 2,
+      indentUnit: 2
+    });
+    const wrap = cm.getWrapperElement();
+    wrap.classList.add('cm-editor-wrap');
+    cm.on('cursorActivity', () => {
+      const cfg = modeConfig[mode];
+      if (currentView === 'code' && cfg && cfg.editors[currentFile] && cfg.editors[currentFile].cm === cm) {
+        updateCursorStatus(cm);
+      }
+    });
+    return {
+      cm,
+      el: wrap,
+      get value() { return cm.getValue(); },
+      set value(v) { cm.setValue(v); },
+      focus() { cm.focus(); cm.refresh(); }
+    };
+  }
+
+  const htmlEditor = createEditor('htmlInput', 'htmlmixed');
+  const cssEditor = createEditor('cssInput', 'css');
+  const jsEditor = createEditor('jsInput', 'javascript');
+  const cssOnlyEditor = createEditor('cssOnlyInput', 'css');
+  const nodeEditor = createEditor('nodeInput', 'javascript');
+  const jsonEditor = createEditor('jsonInput', { name: 'javascript', json: true });
+  const webNodeEditor = createEditor('webNodeInput', 'javascript');
+  const webJsonEditor = createEditor('webJsonInput', { name: 'javascript', json: true });
+
+  // ========== DOM ELEMENTS ==========
+  const preview = document.getElementById('preview');
+  const nodeTerminal = document.getElementById('nodeTerminal');
+  const terminalBody = document.getElementById('terminalBody');
+  const jsonOutputPanel = document.getElementById('jsonOutputPanel');
+  const jsonBanner = document.getElementById('jsonBanner');
+  const jsonOutputCode = document.getElementById('jsonOutputCode');
+
+  const runBtn = document.getElementById('runBtn');
+  const actRun = document.getElementById('actRun');
+  const clearBtn = null; // (no dedicated clear pill anymore — see clear-code actions)
+  const viewHtmlBtn = document.getElementById('viewHtmlBtn');
+  const quickGenerateBtn = document.getElementById('quickGenerateBtn');
+  const toast = document.getElementById('toast');
+  let toastTimer = null;
+
+  const viewHtmlOverlay = document.getElementById('viewHtmlOverlay');
+  const viewHtmlTitle = document.getElementById('viewHtmlTitle');
+  const viewHtmlClose = document.getElementById('viewHtmlClose');
+  const vhTabPreview = document.getElementById('vhTabPreview');
+  const vhTabCode = document.getElementById('vhTabCode');
+  const vhPreviewFrame = document.getElementById('vhPreviewFrame');
+  const vhCodePanel = document.getElementById('vhCodePanel');
+  const vhCodeEl = document.getElementById('vhCodeEl');
+  const vhCopyBtn = document.getElementById('vhCopyBtn');
+  const vhGenerateBtn = document.getElementById('vhGenerateBtn');
+  let vhRawCombined = '';
+  let vhCurrentExt = 'html';
+  let vhCurrentMime = 'text/html';
+  let vhDefaultBase = 'website';
+
+  const confirmOverlay = document.getElementById('confirmOverlay');
+  const confirmMessage = document.getElementById('confirmMessage');
+  const confirmOkBtn = document.getElementById('confirmOkBtn');
+  const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+  let confirmResolver = null;
+
+  function showConfirm(message) {
+    confirmMessage.textContent = message;
+    confirmOverlay.classList.add('show');
+    return new Promise((resolve) => { confirmResolver = resolve; });
+  }
+
+  function resolveConfirm(result) {
+    confirmOverlay.classList.remove('show');
+    if (confirmResolver) { confirmResolver(result); confirmResolver = null; }
+  }
+
+  confirmOkBtn.addEventListener('click', () => resolveConfirm(true));
+  confirmCancelBtn.addEventListener('click', () => resolveConfirm(false));
+  confirmOverlay.addEventListener('click', (e) => { if (e.target === confirmOverlay) resolveConfirm(false); });
+
+  // ===== ABOUT MODAL =====
+  const aboutOverlay = document.getElementById('aboutOverlay');
+  const aboutCloseBtn = document.getElementById('aboutCloseBtn');
+  function showAbout() { aboutOverlay.classList.add('show'); }
+  function hideAbout() { aboutOverlay.classList.remove('show'); }
+  aboutCloseBtn.addEventListener('click', hideAbout);
+  aboutOverlay.addEventListener('click', (e) => { if (e.target === aboutOverlay) hideAbout(); });
+
+  // ===== FILENAME PROMPT =====
+  const filenamePromptOverlay = document.getElementById('filenamePromptOverlay');
+  const filenamePromptLabel = document.getElementById('filenamePromptLabel');
+  const filenamePromptInput = document.getElementById('filenamePromptInput');
+  const filenamePromptExt = document.getElementById('filenamePromptExt');
+  const filenamePromptError = document.getElementById('filenamePromptError');
+  const filenamePromptOkBtn = document.getElementById('filenamePromptOkBtn');
+  const filenamePromptCancelBtn = document.getElementById('filenamePromptCancelBtn');
+  let filenamePromptResolver = null;
+  let currentPromptExt = 'html';
+  let lastUsedFilename = null;
+
+  function sanitizeBaseName(name) {
+    return (name || '').trim().replace(/[\\/:*?"<>|]/g, '').replace(/\.+$/, '').slice(0, 80);
+  }
+
+  function showFilenamePrompt(defaultBase, ext) {
+    currentPromptExt = ext;
+    filenamePromptExt.textContent = '.' + ext;
+    filenamePromptInput.value = defaultBase || '';
+    filenamePromptError.textContent = '';
+    filenamePromptLabel.textContent = 'Anong ipapangalan sa file?';
+    filenamePromptOverlay.classList.add('show');
+    setTimeout(() => { filenamePromptInput.focus(); filenamePromptInput.select(); }, 60);
+    return new Promise((resolve) => { filenamePromptResolver = resolve; });
+  }
+
+  function resolveFilenamePrompt(result) {
+    filenamePromptOverlay.classList.remove('show');
+    if (filenamePromptResolver) { filenamePromptResolver(result); filenamePromptResolver = null; }
+  }
+
+  function confirmFilenamePrompt() {
+    const clean = sanitizeBaseName(filenamePromptInput.value);
+    if (!clean) {
+      filenamePromptError.textContent = 'Kailangan ng pangalan ng file.';
+      filenamePromptInput.focus();
+      return;
+    }
+    resolveFilenamePrompt(clean + '.' + currentPromptExt);
+  }
+
+  filenamePromptOkBtn.addEventListener('click', confirmFilenamePrompt);
+  filenamePromptCancelBtn.addEventListener('click', () => resolveFilenamePrompt(null));
+  filenamePromptOverlay.addEventListener('click', (e) => { if (e.target === filenamePromptOverlay) resolveFilenamePrompt(null); });
+  filenamePromptInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmFilenamePrompt(); }
+    else if (e.key === 'Escape') { resolveFilenamePrompt(null); }
+  });
+
+  function downloadBlob(content, filename, mime) {
+    const blob = new Blob([content], { type: mime || 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ========== TOP LEVEL DOM ==========
+  const sidebar = document.getElementById('sidebar');
+  const fileTree = document.getElementById('fileTree');
+  const fileTabs = document.getElementById('fileTabs');
+  const dynamicFileTabs = document.getElementById('dynamicFileTabs');
+  const tabOutput = document.getElementById('tabOutput');
+  const activeFileName = document.getElementById('activeFileName');
+  const consoleBody = document.getElementById('consoleBody');
+  const consoleTabBtn = document.getElementById('consoleTabBtn');
+  const errorTabBtn = document.getElementById('errorTabBtn');
+  const tabError = errorTabBtn; // has-error toggled on this element
+  const problemBadge = document.getElementById('problemBadge');
+  const bottomPanel = document.getElementById('bottomPanel');
+  const statusbar = document.getElementById('statusbar');
+  const statusErrors = document.getElementById('statusErrors');
+  const statusWarnings = document.getElementById('statusWarnings');
+  const statusRunState = document.getElementById('statusRunState');
+  const statusCursor = document.getElementById('statusCursor');
+  const statusLang = document.getElementById('statusLang');
+
+  // ========== STATE ==========
+  let mode = 'web';        // 'web' | 'css' | 'node' | 'json'
+  let currentFile = 'html';
+  let currentView = 'output'; // 'output' | 'code'
+  let hasError = false;
+  let lastLogs = [];
+  let lastError = '';
+
+  // ========== MODE CONFIGURATION ==========
+  const modeConfig = {
+    web: {
+      files: [
+        { key: 'html', label: 'index.html' },
+        { key: 'css', label: 'style.css' },
+        { key: 'js', label: 'script.js' },
+        { key: 'node', label: 'server.js' },
+        { key: 'json', label: 'data.json' }
+      ],
+      editors: { html: htmlEditor, css: cssEditor, js: jsEditor, node: webNodeEditor, json: webJsonEditor },
+      defaultFile: 'html',
+      output: preview
+    },
+    css: {
+      files: [{ key: 'css', label: 'style.css' }],
+      editors: { css: cssOnlyEditor },
+      defaultFile: 'css',
+      output: preview
+    },
+    node: {
+      files: [{ key: 'js', label: 'script.js' }],
+      editors: { js: nodeEditor },
+      defaultFile: 'js',
+      output: nodeTerminal
+    },
+    json: {
+      files: [{ key: 'json', label: 'data.json' }],
+      editors: { json: jsonEditor },
+      defaultFile: 'json',
+      output: jsonOutputPanel
+    }
+  };
+
+  const ALL_EDITORS = [htmlEditor, cssEditor, jsEditor, cssOnlyEditor, nodeEditor, jsonEditor, webNodeEditor, webJsonEditor];
+  const ALL_OUTPUTS = [preview, nodeTerminal, jsonOutputPanel];
+
+  function hideAllEditors() { ALL_EDITORS.forEach((w) => w.el.classList.remove('active')); }
+  function hideAllOutputs() { ALL_OUTPUTS.forEach((el) => el.classList.remove('active')); }
+
+  // ========== FILE ICONS ==========
+  function iconKeyFor(f) {
+    if (f.key === 'node') return 'node';
+    if (/\.html$/.test(f.label)) return 'html';
+    if (/\.css$/.test(f.label)) return 'css';
+    if (/\.js$/.test(f.label)) return 'js';
+    if (/\.json$/.test(f.label)) return 'json';
+    return 'file';
+  }
+  function iconLabelFor(key) {
+    return { html: 'H', css: 'C', js: 'JS', node: 'N', json: '{}', file: '•' }[key] || '•';
+  }
+
+  // ========== TOAST NOTIFICATIONS ==========
+  function showToast(message, type = '') {
+    const icon = type === 'success' ? '✅' : type === 'danger' ? '⚠️' : 'ℹ️';
+    toast.innerHTML = '<span class="toast-icon">' + icon + '</span><span>' + message + '</span>';
+    toast.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 2400);
+  }
+
+  // ========== RIPPLE EFFECT ==========
+  document.addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('.activity-icon, .tab-action-btn, .side-action-btn, .panel-action-btn, .title-icon-btn, .pill, .vh-copy-btn, .viewhtml-close');
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height) * 1.4;
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple-effect';
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+    ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+    btn.appendChild(ripple);
+    ripple.addEventListener('animationend', () => ripple.remove());
+  });
+
+  // ========== SIDEBAR: collapsible sections ==========
+  document.querySelectorAll('.sb-section-header').forEach((h) => {
+    h.addEventListener('click', () => {
+      document.getElementById(h.dataset.section).classList.toggle('collapsed');
+    });
+  });
+
+  // ========== SIDEBAR: mode workspace switch ==========
+  document.getElementById('sectionModes').querySelector('.sb-section-body').addEventListener('click', (e) => {
+    const item = e.target.closest('.mode-item');
+    if (!item) return;
+    selectMode(item.dataset.mode);
+  });
+
+  function selectMode(newMode) {
+    document.querySelectorAll('.mode-item').forEach((i) => i.classList.toggle('active', i.dataset.mode === newMode));
+    switchMode(newMode);
+  }
+
+  // ========== MODE SWITCHING ==========
+  function switchMode(newMode) {
+    mode = newMode;
+    document.body.dataset.mode = mode;
+    const cfg = modeConfig[mode];
+    currentFile = cfg.defaultFile;
+
+    dynamicFileTabs.innerHTML = cfg.files.map((f) =>
+      `<div class="tab filetab" data-file="${f.key}" tabindex="0"><span class="file-icon icon-${iconKeyFor(f)}">${iconLabelFor(iconKeyFor(f))}</span>${f.label}</div>`
+    ).join('');
+
+    fileTree.innerHTML = cfg.files.map((f) =>
+      `<div class="tree-file" data-file="${f.key}" tabindex="0"><span class="file-icon icon-${iconKeyFor(f)}">${iconLabelFor(iconKeyFor(f))}</span>${f.label}</div>`
+    ).join('');
+
+    hideAllEditors();
+    hideAllOutputs();
+    resetOutputForMode();
+
+    lastLogs = [];
+    hasError = false;
+    lastError = '';
+    updateProblemsUI();
+    renderConsole([]);
+
+    updateActionLabels();
+    setView('output');
+    if (typeof syncExtensionFeatures === 'function') syncExtensionFeatures();
+    showToast('Switched to ' + labelFor(mode), 'success');
+  }
+
+  function resetOutputForMode() {
+    preview.srcdoc = '';
+    resetTerminal();
+    resetJsonOutput();
+  }
+
+  function labelFor(m) {
+    const labels = { web: 'Web Mode (HTML+CSS+JS+Node+JSON)', css: 'CSS Playground', node: 'Node.js Runtime', json: 'JSON Formatter' };
+    return labels[m] || m;
+  }
+
+  function updateActionLabels() {
+    if (mode === 'node') { viewHtmlBtn.title = 'View Script'; quickGenerateBtn.title = 'Download .js'; }
+    else if (mode === 'json') { viewHtmlBtn.title = 'View JSON'; quickGenerateBtn.title = 'Download .json'; }
+    else { viewHtmlBtn.title = 'View Full Code'; quickGenerateBtn.title = 'Download HTML'; }
+  }
+
+  // ========== VIEW SWITCHING (Output vs Code) ==========
+  function setView(view) {
+    currentView = view;
+    const cfg = modeConfig[mode];
+    hideAllEditors();
+    hideAllOutputs();
+
+    tabOutput.classList.toggle('active', view === 'output');
+    document.querySelectorAll('#fileTabs .filetab').forEach((t) => {
+      t.classList.toggle('active', view === 'code' && t.dataset.file === currentFile);
+    });
+    syncTreeActive();
+
+    if (view === 'output') {
+      cfg.output.classList.add('active');
+      renderBreadcrumb('Output');
+      statusLang.textContent = labelFor(mode).split(' ')[0];
+    } else {
+      const w = cfg.editors[currentFile];
+      w.el.classList.add('active');
+      w.cm.refresh();
+      renderBreadcrumb(fileLabelFor(currentFile));
+      statusLang.textContent = extLangFor(currentFile);
+      updateCursorStatus(w.cm);
+      if (typeof runLintFor === 'function') runLintFor(w);
+    }
+  }
+
+  function fileLabelFor(key) {
+    const f = modeConfig[mode].files.find((f) => f.key === key);
+    return f ? f.label : key;
+  }
+
+  function extLangFor(key) {
+    const label = fileLabelFor(key);
+    if (/\.html$/.test(label)) return 'HTML';
+    if (/\.css$/.test(label)) return 'CSS';
+    if (/\.json$/.test(label)) return 'JSON';
+    if (/\.js$/.test(label)) return key === 'node' ? 'JavaScript (Node)' : 'JavaScript';
+    return 'Plain Text';
+  }
+
+  function renderBreadcrumb(current) {
+    activeFileName.innerHTML = '<span class="crumb-root">WEBWISE-PLAYGROUND</span><span class="crumb-sep">›</span><span class="crumb-root">' + labelFor(mode).split(' ')[0] + '</span><span class="crumb-sep">›</span><span class="crumb-current">' + current + '</span>';
+  }
+
+  function syncTreeActive() {
+    document.querySelectorAll('.tree-file').forEach((t) => {
+      t.classList.toggle('active', currentView === 'code' && t.dataset.file === currentFile);
+    });
+  }
+
+  tabOutput.addEventListener('click', () => setView('output'));
+
+  fileTabs.addEventListener('click', (e) => {
+    const tab = e.target.closest('.filetab');
+    if (!tab) return;
+    currentFile = tab.dataset.file;
+    setView('code');
+  });
+
+  fileTree.addEventListener('click', (e) => {
+    const item = e.target.closest('.tree-file');
+    if (!item) return;
+    currentFile = item.dataset.file;
+    setView('code');
+  });
+
+  // ========== CURSOR / STATUS BAR ==========
+  function updateCursorStatus(cm) {
+    const pos = cm.getCursor();
+    statusCursor.textContent = 'Ln ' + (pos.line + 1) + ', Col ' + (pos.ch + 1);
+  }
+
+  function setRunState(state) {
+    // state: 'ready' | 'running' | 'success' | 'error'
+    statusbar.classList.remove('running', 'err');
+    if (state === 'running') { statusbar.classList.add('running'); statusRunState.textContent = '⏳ Running...'; }
+    else if (state === 'success') { statusRunState.textContent = '✅ Ready'; }
+    else if (state === 'error') { statusbar.classList.add('err'); statusRunState.textContent = '❌ May Error'; }
+    else { statusRunState.textContent = '⚡ Ready'; }
+  }
+
+  function updateProblemsUI() {
+    const lint = (typeof lintProblems !== 'undefined') ? lintProblems : [];
+    const errCount = (hasError ? 1 : 0) + lint.filter((p) => p.severity === 'error').length;
+    const warnCount = lint.filter((p) => p.severity === 'warning').length;
+    const total = errCount + warnCount;
+    tabError.classList.toggle('has-error', errCount > 0);
+    statusErrors.textContent = '✖ ' + errCount;
+    if (statusWarnings) statusWarnings.textContent = '⚠ ' + warnCount;
+    if (total > 0) { problemBadge.style.display = 'inline-block'; problemBadge.textContent = total; }
+    else { problemBadge.style.display = 'none'; }
+  }
+
+  // ========== CONSOLE / PANEL TABS ==========
+  function renderConsole(logs) {
+    if (!logs || logs.length === 0) {
+      consoleBody.innerHTML = '<div class="empty-hint">Wala pang output. Pindutin ang Run.</div>';
+      return;
+    }
+    consoleBody.innerHTML = logs.map((l) => {
+      const cls = l.type === 'error' ? 'console-line error-line' : l.type === 'warn' ? 'console-line warn-line' : 'console-line';
+      const icon = l.type === 'error' ? '❌' : l.type === 'warn' ? '⚠️' : '✓';
+      return `<div class="${cls}"><span class="icon">${icon}</span><span>${escapeHtml(l.text)}</span></div>`;
+    }).join('');
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  consoleTabBtn.addEventListener('click', () => {
+    document.querySelectorAll('.panel-tab').forEach((t) => t.classList.remove('active'));
+    consoleTabBtn.classList.add('active');
+    renderConsole(lastLogs);
+    setPanelOpen(true);
+  });
+
+  errorTabBtn.addEventListener('click', () => {
+    document.querySelectorAll('.panel-tab').forEach((t) => t.classList.remove('active'));
+    errorTabBtn.classList.add('active');
+    const lint = (typeof lintProblems !== 'undefined') ? lintProblems : [];
+    const items = [];
+    if (hasError) items.push({ type: 'error', text: lastError });
+    lint.forEach((p) => items.push({ type: p.severity === 'error' ? 'error' : 'warn', text: `[ESLint] Ln ${p.line}: ${p.message}` }));
+    if (items.length) { renderConsole(items); }
+    else { consoleBody.innerHTML = '<div class="empty-hint">Walang error 🎉</div>'; }
+    setPanelOpen(true);
+  });
+
+  document.getElementById('panelClearBtn').addEventListener('click', () => {
+    lastLogs = [];
+    renderConsole([]);
+    showToast('Na-clear ang terminal ✅', 'success');
+  });
+
+  // ========== PANEL TOGGLE ==========
+  function setPanelOpen(open) {
+    bottomPanel.classList.toggle('collapsed', !open);
+    document.getElementById('panelToggleBtn').textContent = open ? '▁' : '▔';
+  }
+  function togglePanel() { setPanelOpen(bottomPanel.classList.contains('collapsed')); }
+  document.getElementById('panelToggleBtn').addEventListener('click', togglePanel);
+
+  // ========== SIDEBAR TOGGLE + VIEW SWITCHING (Explorer / Search / Extensions) ==========
+  const sidebarHeaderLabel = document.getElementById('sidebarHeaderLabel');
+  const sidebarHeaderActions = document.getElementById('sidebarHeaderActions');
+  const SIDEBAR_VIEWS = {
+    explorer: { btn: 'actExplorer', panel: 'sidebarViewExplorer', label: 'EXPLORER', showActions: true },
+    search:   { btn: 'actSearch',   panel: 'sidebarViewSearch',   label: 'SEARCH', showActions: false },
+    extensions: { btn: 'actExtensions', panel: 'sidebarViewExtensions', label: 'EXTENSIONS', showActions: false }
+  };
+  let sidebarView = 'explorer';
+
+  function setSidebarOpen(open) {
+    sidebar.classList.toggle('collapsed', !open);
+  }
+  function toggleSidebar() { setSidebarOpen(sidebar.classList.contains('collapsed')); }
+
+  function showSidebarView(view) {
+    sidebarView = view;
+    Object.entries(SIDEBAR_VIEWS).forEach(([key, cfg]) => {
+      document.getElementById(cfg.panel).classList.toggle('active', key === view);
+      document.getElementById(cfg.btn).classList.toggle('active', key === view);
+    });
+    const cfg = SIDEBAR_VIEWS[view];
+    sidebarHeaderLabel.textContent = cfg.label;
+    sidebarHeaderActions.style.display = cfg.showActions ? 'flex' : 'none';
+    if (view === 'search') setTimeout(() => searchInput.focus(), 30);
+    if (view === 'extensions' && !extRendered) renderExtensions();
+  }
+
+  function activityIconClick(view) {
+    if (!sidebar.classList.contains('collapsed') && sidebarView === view) {
+      setSidebarOpen(false);
+    } else {
+      setSidebarOpen(true);
+      showSidebarView(view);
+    }
+  }
+
+  document.getElementById('actExplorer').addEventListener('click', () => activityIconClick('explorer'));
+  document.getElementById('actSearch').addEventListener('click', () => activityIconClick('search'));
+  document.getElementById('actExtensions').addEventListener('click', () => activityIconClick('extensions'));
+  document.getElementById('actAbout').addEventListener('click', showAbout);
+  document.getElementById('actRun').addEventListener('click', runCode);
+
+  // ========== SEARCH VIEW: full-workspace text search across all files ==========
+  const searchInput = document.getElementById('searchInput');
+  const searchClearBtn = document.getElementById('searchClearBtn');
+  const searchSummary = document.getElementById('searchSummary');
+  const searchResults = document.getElementById('searchResults');
+  const searchScopeAllBtn = document.getElementById('searchScopeAll');
+  const searchScopeCurrentBtn = document.getElementById('searchScopeCurrent');
+  let searchScope = 'all';
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  function collectSearchTargets() {
+    const modes = searchScope === 'current' ? [mode] : Object.keys(modeConfig);
+    const targets = [];
+    modes.forEach((m) => {
+      const cfg = modeConfig[m];
+      cfg.files.forEach((f) => {
+        const editor = cfg.editors[f.key];
+        if (!editor) return;
+        if (targets.some((t) => t.editor === editor)) return; // avoid dup (shared editors)
+        targets.push({ mode: m, fileKey: f.key, label: f.label, iconKey: iconKeyFor(f), editor });
+      });
+    });
+    return targets;
+  }
+
+  function runSearch(query) {
+    searchClearBtn.classList.toggle('show', query.length > 0);
+    if (!query.trim()) {
+      searchResults.innerHTML = '';
+      searchSummary.textContent = 'I-type para maghanap sa lahat ng files (HTML, CSS, JS, Node, JSON).';
+      return;
+    }
+    const targets = collectSearchTargets();
+    let totalMatches = 0;
+    let totalFiles = 0;
+    const re = new RegExp(escapeRegExp(query), 'gi');
+    let html = '';
+
+    targets.forEach((t) => {
+      const lines = t.editor.value.split('\n');
+      let fileMatches = 0;
+      let bodyHtml = '';
+      lines.forEach((line, idx) => {
+        re.lastIndex = 0;
+        if (!re.test(line)) return;
+        fileMatches++;
+        let highlighted = '';
+        let lastIdx = 0;
+        const lineRe = new RegExp(escapeRegExp(query), 'gi');
+        let m;
+        while ((m = lineRe.exec(line)) !== null) {
+          highlighted += escapeHtml(line.slice(lastIdx, m.index)) + '<mark>' + escapeHtml(m[0]) + '</mark>';
+          lastIdx = m.index + m[0].length;
+          if (m[0].length === 0) lineRe.lastIndex++;
+        }
+        highlighted += escapeHtml(line.slice(lastIdx));
+        bodyHtml += `<div class="search-result-line" data-mode="${t.mode}" data-file="${t.fileKey}" data-line="${idx}" title="${escapeHtml(line.trim())}">
+          <span class="srl-num">${idx + 1}</span><span class="srl-text">${highlighted.trim()}</span>
+        </div>`;
+      });
+      if (fileMatches > 0) {
+        totalMatches += fileMatches;
+        totalFiles++;
+        const workspaceTag = searchScope === 'all' ? ` <span style="opacity:.6;font-weight:400;">— ${escapeHtml(labelFor(t.mode).split(' ')[0])}</span>` : '';
+        html += `<div class="search-group">
+          <div class="search-group-header">
+            <span class="sg-chev">▾</span>
+            <span class="file-icon icon-${t.iconKey}">${iconLabelFor(t.iconKey)}</span>
+            <span>${escapeHtml(t.label)}${workspaceTag}</span>
+            <span class="sg-count">${fileMatches}</span>
+          </div>
+          <div class="search-group-body">${bodyHtml}</div>
+        </div>`;
+      }
+    });
+
+    if (totalMatches === 0) {
+      searchResults.innerHTML = `<div class="search-empty"><span class="se-icon">🔍</span>Walang nahanap na resulta para sa<br>"<strong>${escapeHtml(query)}</strong>"</div>`;
+      searchSummary.textContent = '0 resulta';
+    } else {
+      searchResults.innerHTML = html;
+      searchSummary.textContent = `${totalMatches} resulta sa ${totalFiles} file${totalFiles === 1 ? '' : 's'}`;
+    }
+  }
+
+  searchInput.addEventListener('input', () => runSearch(searchInput.value));
+  searchClearBtn.addEventListener('click', () => { searchInput.value = ''; runSearch(''); searchInput.focus(); });
+  searchScopeAllBtn.addEventListener('click', () => {
+    searchScope = 'all';
+    searchScopeAllBtn.classList.add('active'); searchScopeCurrentBtn.classList.remove('active');
+    runSearch(searchInput.value);
+  });
+  searchScopeCurrentBtn.addEventListener('click', () => {
+    searchScope = 'current';
+    searchScopeCurrentBtn.classList.add('active'); searchScopeAllBtn.classList.remove('active');
+    runSearch(searchInput.value);
+  });
+
+  searchResults.addEventListener('click', (e) => {
+    const header = e.target.closest('.search-group-header');
+    if (header) { header.classList.toggle('collapsed'); return; }
+    const line = e.target.closest('.search-result-line');
+    if (!line) return;
+    const targetMode = line.dataset.mode;
+    const targetFile = line.dataset.file;
+    const lineIdx = Number(line.dataset.line);
+    if (targetMode !== mode) {
+      selectMode(targetMode);
+    }
+    currentFile = targetFile;
+    setView('code');
+    const w = modeConfig[mode].editors[currentFile];
+    setTimeout(() => {
+      w.cm.focus();
+      w.cm.setCursor({ line: lineIdx, ch: 0 });
+      w.cm.scrollIntoView({ line: lineIdx, ch: 0 }, 80);
+      const lh = w.cm.lineInfo(lineIdx).handle;
+      w.cm.addLineClass(lineIdx, 'background', 'cm-search-flash');
+      setTimeout(() => w.cm.removeLineClass(lineIdx, 'background', 'cm-search-flash'), 1200);
+    }, 20);
+  });
+
+  // ========== EXTENSIONS VIEW: VS Code-style marketplace (curated catalog, offline demo) ==========
+  const extSearchInput = document.getElementById('extSearchInput');
+  const extSearchClearBtn = document.getElementById('extSearchClearBtn');
+  const extSummary = document.getElementById('extSummary');
+  const extList = document.getElementById('extList');
+  let extRendered = false;
+  const installedExtensions = new Set(['esbenp.prettier-vscode', 'dbaeumer.vscode-eslint', 'pkief.material-icon-theme']);
+
+  const EXTENSION_CATALOG = [
+    { id: 'github.copilot', name: 'GitHub Copilot', publisher: 'GitHub', desc: 'AI pair programmer na nagbibigay ng inline code suggestions habang nagta-type ka.', cat: 'AI', downloads: '42M', rating: 4.2, color: '#191919', letter: 'GC', verified: true },
+    { id: 'github.copilot-chat', name: 'GitHub Copilot Chat', publisher: 'GitHub', desc: 'AI chat assistant para sa debugging, refactoring, at pag-explain ng code.', cat: 'AI', downloads: '18M', rating: 4.3, color: '#191919', letter: 'CC', verified: true },
+    { id: 'esbenp.prettier-vscode', name: 'Prettier - Code formatter', publisher: 'Prettier', desc: '⚡ GUMAGANA: I-format ang buong file (HTML/CSS/JS/JSON) gamit ang ✨ button o Shift+Alt+F.', cat: 'Formatters', downloads: '48M', rating: 4.6, color: '#1a2b34', letter: '{ }', verified: true },
+    { id: 'dbaeumer.vscode-eslint', name: 'ESLint', publisher: 'Microsoft', desc: '⚡ GUMAGANA: Real-time na nag-a-analyze ng JavaScript at nagpapakita ng errors/warnings sa Problems panel.', cat: 'Linters', downloads: '35M', rating: 4.4, color: '#4b32c3', letter: 'ES', verified: true },
+    { id: 'ritwickdey.liveserver', name: 'Live Server', publisher: 'Ritwick Dey', desc: '⚡ GUMAGANA: Pindutin ang 🌐 Go Live para mag-download ng tunay na server.js. Patakbuhin gamit ang "node server.js" para talagang mabuksan sa http://localhost:8000 sa kahit anong browser.', cat: 'Web', downloads: '32M', rating: 4.6, color: '#dd4b39', letter: 'LS', verified: false },
+    { id: 'ms-python.python', name: 'Python', publisher: 'Microsoft', desc: 'IntelliSense, linting, debugging, code navigation para sa Python.', cat: 'Languages', downloads: '135M', rating: 4.1, color: '#2b5b84', letter: 'Py', verified: true },
+    { id: 'ms-python.vscode-pylance', name: 'Pylance', publisher: 'Microsoft', desc: 'Mabilis, feature-rich na language support para sa Python.', cat: 'Languages', downloads: '90M', rating: 4.3, color: '#2b5b84', letter: 'PL', verified: true },
+    { id: 'ms-azuretools.vscode-docker', name: 'Docker', publisher: 'Microsoft', desc: 'Buo-buong Docker support: build, manage, at deploy containerized apps.', cat: 'Containers', downloads: '25M', rating: 4.3, color: '#2496ed', letter: '🐳', verified: true },
+    { id: 'ms-vscode-remote.remote-containers', name: 'Dev Containers', publisher: 'Microsoft', desc: 'Buksan ang folder sa loob ng Docker container bilang full-featured dev environment.', cat: 'Containers', downloads: '20M', rating: 4.4, color: '#2496ed', letter: 'DC', verified: true },
+    { id: 'ms-vscode-remote.remote-ssh', name: 'Remote - SSH', publisher: 'Microsoft', desc: 'I-edit ang code sa remote machine, VM, o container gamit ang SSH.', cat: 'Remote', downloads: '18M', rating: 4.0, color: '#005fb8', letter: 'SSH', verified: true },
+    { id: 'ms-vsliveshare.vsliveshare', name: 'Live Share', publisher: 'Microsoft', desc: 'Real-time collaborative editing at debugging kasama ang teammates mo.', cat: 'Collaboration', downloads: '14M', rating: 3.9, color: '#005fb8', letter: '👥', verified: true },
+    { id: 'eamodio.gitlens', name: 'GitLens — Git supercharged', publisher: 'GitKraken', desc: 'Makita kung sino at bakit binago ang bawat linya gamit ang git blame annotations.', cat: 'Git', downloads: '32M', rating: 4.7, color: '#7c3aed', letter: 'GL', verified: true },
+    { id: 'mhutchie.git-graph', name: 'Git Graph', publisher: 'mhutchie', desc: 'Tingnan ang git commit graph nang visual, direkta sa loob ng editor.', cat: 'Git', downloads: '9M', rating: 4.6, color: '#7c3aed', letter: 'GG', verified: false },
+    { id: 'formulahendry.auto-rename-tag', name: 'Auto Rename Tag', publisher: 'Jun Han', desc: 'Awtomatikong nirerename ang paired HTML/XML tag kapag in-edit mo ang isa.', cat: 'Web', downloads: '17M', rating: 4.5, color: '#e34c26', letter: '</>', verified: false },
+    { id: 'christian-kohler.path-intellisense', name: 'Path Intellisense', publisher: 'Christian Kohler', desc: 'Auto-complete ng filenames at path sa loob ng import/require statements.', cat: 'Productivity', downloads: '14M', rating: 4.5, color: '#3c3c3c', letter: 'PI', verified: false },
+    { id: 'pkief.material-icon-theme', name: 'Material Icon Theme', publisher: 'Philipp Kief', desc: 'Nagbibigay ng magagandang Material Design icons sa file explorer.', cat: 'Themes', downloads: '30M', rating: 4.9, color: '#3f51b5', letter: '📁', verified: false },
+    { id: 'zhuangtongfa.material-theme', name: 'One Dark Pro', publisher: 'binaryify', desc: 'Ang pinaka-popular na Atom One Dark theme, na-port para sa VS Code.', cat: 'Themes', downloads: '13M', rating: 4.9, color: '#282c34', letter: '🌙', verified: false },
+    { id: 'bradlc.vscode-tailwindcss', name: 'Tailwind CSS IntelliSense', publisher: 'Tailwind Labs', desc: 'Autocomplete, linting, at syntax highlighting para sa Tailwind CSS.', cat: 'Web', downloads: '11M', rating: 4.8, color: '#38bdf8', letter: 'TW', verified: true },
+    { id: 'humao.rest-client', name: 'REST Client', publisher: 'Huachao Mao', desc: 'Magpadala ng HTTP request at tingnan ang response nang direkta sa editor.', cat: 'API Testing', downloads: '8M', rating: 4.5, color: '#0e639c', letter: 'RC', verified: false },
+    { id: 'rangav.vscode-thunder-client', name: 'Thunder Client', publisher: 'Ranga Vadhineni', desc: 'Magandang UI na REST API client — parang Postman pero built-in sa VS Code.', cat: 'API Testing', downloads: '9M', rating: 4.8, color: '#f5a623', letter: '⚡', verified: false },
+    { id: 'gruntfuggly.todo-tree', name: 'Todo Tree', publisher: 'Gruntfuggly', desc: '⚡ GUMAGANA: Nagdaragdag ng "TODOS" tab sa bottom panel na naglilista ng lahat ng TODO/FIXME/BUG comments.', cat: 'Productivity', downloads: '7M', rating: 4.5, color: '#16825d', letter: '✓', verified: false },
+    { id: 'usernamehw.errorlens', name: 'Error Lens', publisher: 'Alexander', desc: 'Ipinapakita ang errors at warnings agad sa tabi ng linya, hindi lang sa Problems panel.', cat: 'Productivity', downloads: '9M', rating: 4.6, color: '#f14c4c', letter: '!', verified: false },
+    { id: 'oderwat.indent-rainbow', name: 'indent-rainbow', publisher: 'oderwat', desc: 'Kinukulayan ang indentation para mas madaling makita ang code structure.', cat: 'Productivity', downloads: '11M', rating: 4.3, color: '#8e44ad', letter: '🌈', verified: false },
+    { id: 'aaron-bond.better-comments', name: 'Better Comments', publisher: 'Aaron Bond', desc: 'I-categorize ang comments (alerts, TODOs, questions) gamit ang color coding.', cat: 'Productivity', downloads: '8M', rating: 4.6, color: '#ff6b6b', letter: '#', verified: false },
+    { id: 'streetsidesoftware.code-spell-checker', name: 'Code Spell Checker', publisher: 'Street Side Software', desc: 'Basic spell checker na gumagana sa code at comments.', cat: 'Linters', downloads: '10M', rating: 4.5, color: '#2d6a4f', letter: 'ABC', verified: false },
+    { id: 'davidanson.vscode-markdownlint', name: 'markdownlint', publisher: 'David Anson', desc: 'Linting at style checking para sa Markdown files.', cat: 'Linters', downloads: '9M', rating: 4.5, color: '#083fa1', letter: 'MD', verified: false },
+    { id: 'editorconfig.editorconfig', name: 'EditorConfig for VS Code', publisher: 'EditorConfig', desc: 'Suportado ang .editorconfig files para pare-pareho ang coding style ng team.', cat: 'Productivity', downloads: '13M', rating: 4.3, color: '#3c3c3c', letter: 'EC', verified: false },
+    { id: 'wix.vscode-import-cost', name: 'Import Cost', publisher: 'Wix', desc: 'Ipinapakita ang size ng imported package sa gilid ng import statement.', cat: 'Productivity', downloads: '4M', rating: 4.1, color: '#0e639c', letter: 'IC', verified: false },
+    { id: 'chakrounanas.turbo-console-log', name: 'Turbo Console Log', publisher: 'Chakroun Anas', desc: 'Awtomatikong mag-insert ng makabuluhang console.log statements.', cat: 'Productivity', downloads: '5M', rating: 4.7, color: '#f5a623', letter: 'TC', verified: false },
+    { id: 'johnpapa.vscode-peacock', name: 'Peacock', publisher: 'John Papa', desc: 'Kulayan ang workspace para madaling makilala kung alin ang aktibo.', cat: 'Productivity', downloads: '3M', rating: 4.5, color: '#00b294', letter: 'PK', verified: false },
+    { id: 'mikestead.dotenv', name: 'DotENV', publisher: 'mikestead', desc: 'Syntax highlighting para sa .env files.', cat: 'Languages', downloads: '6M', rating: 4.4, color: '#f5d033', letter: '.env', verified: false },
+    { id: 'redhat.vscode-yaml', name: 'YAML', publisher: 'Red Hat', desc: 'YAML language support na may schema validation.', cat: 'Languages', downloads: '22M', rating: 4.2, color: '#e00', letter: 'YM', verified: true },
+    { id: 'ms-vscode.cpptools', name: 'C/C++', publisher: 'Microsoft', desc: 'IntelliSense, debugging, at code browsing para sa C/C++.', cat: 'Languages', downloads: '75M', rating: 3.8, color: '#005494', letter: 'C++', verified: true },
+    { id: 'golang.go', name: 'Go', publisher: 'Go Team at Google', desc: 'Rich language support para sa Go programming language.', cat: 'Languages', downloads: '19M', rating: 4.3, color: '#00add8', letter: 'Go', verified: true },
+    { id: 'rust-lang.rust-analyzer', name: 'rust-analyzer', publisher: 'The Rust Programming Language', desc: 'Official Rust language server na may autocomplete at inline errors.', cat: 'Languages', downloads: '6M', rating: 4.7, color: '#dea584', letter: 'Rs', verified: true },
+    { id: 'vue.volar', name: 'Vue - Official', publisher: 'Vue', desc: 'Language support para sa Vue 3 kasama ang script setup at TS.', cat: 'Languages', downloads: '10M', rating: 4.4, color: '#42b883', letter: 'Vue', verified: true },
+    { id: 'angular.ng-template', name: 'Angular Language Service', publisher: 'Angular', desc: 'Editor services para sa Angular templates.', cat: 'Languages', downloads: '4M', rating: 4.0, color: '#dd0031', letter: 'Ng', verified: true },
+    { id: 'bmewburn.vscode-intelephense-client', name: 'PHP Intelephense', publisher: 'Ben Mewburn', desc: 'High-performance PHP language server na may rich IntelliSense.', cat: 'Languages', downloads: '15M', rating: 4.6, color: '#787cb5', letter: 'Php', verified: false },
+    { id: 'visualstudioexptteam.vscodeintellicode', name: 'IntelliCode', publisher: 'Microsoft', desc: 'AI-assisted na code completion na may priority sa pinaka-relevant na suggestions.', cat: 'AI', downloads: '28M', rating: 3.9, color: '#68217a', letter: 'IC', verified: true },
+    { id: 'ms-toolsai.jupyter', name: 'Jupyter', publisher: 'Microsoft', desc: 'Buksan at patakbuhin ang .ipynb notebooks direkta sa VS Code.', cat: 'Data Science', downloads: '38M', rating: 4.2, color: '#f37626', letter: '📓', verified: true },
+    { id: 'mongodb.mongodb-vscode', name: 'MongoDB for VS Code', publisher: 'MongoDB', desc: 'I-connect, i-explore, at i-query ang MongoDB databases mo.', cat: 'Database', downloads: '3M', rating: 4.2, color: '#00684a', letter: 'DB', verified: true },
+    { id: 'mtxr.sqltools', name: 'SQLTools', publisher: 'Matheus Teixeira', desc: 'Database management na may query runner para sa maraming SQL databases.', cat: 'Database', downloads: '5M', rating: 4.3, color: '#0e639c', letter: 'SQL', verified: false },
+    { id: 'postman.postman-for-vscode', name: 'Postman', publisher: 'Postman', desc: 'Buksan, i-edit, at patakbuhin ang Postman collections nang hindi umaalis sa editor.', cat: 'API Testing', downloads: '4M', rating: 4.0, color: '#ff6c37', letter: 'Pm', verified: true },
+    { id: 'dsznajder.es7-react-js-snippets', name: 'ES7+ React/Redux Snippets', publisher: 'dsznajder', desc: 'Mga JavaScript at React/Redux snippets para sa mabilis na coding.', cat: 'Snippets', downloads: '13M', rating: 4.5, color: '#61dafb', letter: '⚛', verified: false },
+    { id: 'xabikos.reactsnippets', name: 'React snippets', publisher: 'Xabikos', desc: 'Karagdagang React, React Native, at Redux snippets.', cat: 'Snippets', downloads: '3M', rating: 4.3, color: '#61dafb', letter: '⚛', verified: false },
+    { id: 'vscode-icons-team.vscode-icons', name: 'vscode-icons', publisher: 'VSCode Icons Team', desc: 'Isa pang magandang icon pack para sa files at folders.', cat: 'Themes', downloads: '21M', rating: 4.6, color: '#3c3c3c', letter: '🖼', verified: false },
+    { id: 'ms-vscode.powershell', name: 'PowerShell', publisher: 'Microsoft', desc: 'IntelliSense at debugging para sa PowerShell scripts.', cat: 'Languages', downloads: '12M', rating: 3.9, color: '#012456', letter: 'PS', verified: true },
+    { id: 'redhat.java', name: 'Language Support for Java', publisher: 'Red Hat', desc: 'Java language support na pinapagana ng Eclipse JDT.', cat: 'Languages', downloads: '17M', rating: 4.1, color: '#f89820', letter: 'Jv', verified: true },
+    { id: 'ms-dotnettools.csharp', name: 'C#', publisher: 'Microsoft', desc: 'C# editing support na may syntax highlighting, IntelliSense, at debugging.', cat: 'Languages', downloads: '65M', rating: 3.7, color: '#68217a', letter: 'C#', verified: true }
+  ];
+
+  function extBadgeColor(cat) { return cat; }
+
+  function updateExtBadge() {
+    const badge = document.getElementById('extCountBadge');
+    if (!badge) return;
+    badge.textContent = installedExtensions.size;
+    badge.style.display = installedExtensions.size > 0 ? 'flex' : 'none';
+  }
+
+  function renderExtensions(filter) {
+    extRendered = true;
+    updateExtBadge();
+    const q = (filter || '').toLowerCase().trim();
+    const filtered = q
+      ? EXTENSION_CATALOG.filter((e) =>
+          e.name.toLowerCase().includes(q) ||
+          e.publisher.toLowerCase().includes(q) ||
+          e.cat.toLowerCase().includes(q) ||
+          e.desc.toLowerCase().includes(q))
+      : EXTENSION_CATALOG;
+
+    if (filtered.length === 0) {
+      extList.innerHTML = `<div class="ext-empty"><span class="se-icon">🧩</span>Walang extension na tugma sa "<strong>${escapeHtml(filter)}</strong>"</div>`;
+      extSummary.textContent = '0 resulta';
+      return;
+    }
+
+    extSummary.textContent = q
+      ? `${filtered.length} resulta para sa "${escapeHtml(filter)}"`
+      : `${EXTENSION_CATALOG.length} extensions · ${installedExtensions.size} naka-install`;
+
+    extList.innerHTML = filtered.map((e) => {
+      const installed = installedExtensions.has(e.id);
+      return `<div class="ext-card" data-id="${e.id}">
+        <div class="ext-icon" style="background:${e.color}">${e.letter}</div>
+        <div class="ext-body">
+          <div class="ext-title-row">
+            <span class="ext-name">${escapeHtml(e.name)}</span>
+            ${e.verified ? '<span class="ext-verified" title="Verified publisher">✔</span>' : ''}
+          </div>
+          <div class="ext-publisher">${escapeHtml(e.publisher)}</div>
+          <div class="ext-desc">${escapeHtml(e.desc)}</div>
+          <div class="ext-stats-row">
+            <span class="ext-stat">⬇ ${e.downloads}</span>
+            <span class="ext-stat">★ ${e.rating.toFixed(1)}</span>
+            <span class="ext-stat" style="opacity:.7">${escapeHtml(e.cat)}</span>
+            <button class="ext-install-btn${installed ? ' installed' : ''}" data-id="${e.id}">${installed ? '✓ Installed' : 'Install'}</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  extSearchInput.addEventListener('input', () => {
+    extSearchClearBtn.classList.toggle('show', extSearchInput.value.length > 0);
+    renderExtensions(extSearchInput.value);
+  });
+  extSearchClearBtn.addEventListener('click', () => { extSearchInput.value = ''; renderExtensions(''); extSearchInput.focus(); });
+
+  extList.addEventListener('click', (e) => {
+    const btn = e.target.closest('.ext-install-btn');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const ext = EXTENSION_CATALOG.find((x) => x.id === id);
+    if (!ext) return;
+    if (installedExtensions.has(id)) {
+      installedExtensions.delete(id);
+      showToast(ext.name + ' — na-uninstall ✅', '');
+    } else {
+      installedExtensions.add(id);
+      showToast(ext.name + ' — na-install ✅', 'success');
+    }
+    renderExtensions(extSearchInput.value);
+    syncExtensionFeatures();
+  });
+
+  document.getElementById('sbClearBtn').addEventListener('click', clearText);
+  document.getElementById('sbDownloadBtn').addEventListener('click', quickGenerateFile);
+
+  // ========================================================================
+  // REAL EXTENSION ENGINE — dati'y palamuti lang ang Install button, ngayon
+  // may aktwal na epekto ang ilang extensions kapag naka-install (Prettier,
+  // ESLint, Live Server, Todo Tree). Gumagamit ng tunay na libraries
+  // (js-beautify, JSHint) na na-load mula CDN sa itaas ng file.
+  // ========================================================================
+  const formatBtn = document.getElementById('formatBtn');
+  const goLiveBtn = document.getElementById('goLiveBtn');
+  const statusLiveServer = document.getElementById('statusLiveServer');
+  const todoTabBtn = document.getElementById('todoTabBtn');
+  const todoBadge = document.getElementById('todoBadge');
+
+  function extInstalled(id) { return installedExtensions.has(id); }
+
+  function requireExtToast(name) {
+    showToast(`🧩 I-install muna ang "${name}" extension (Ctrl+Shift+X) para gumana ito.`, 'danger');
+  }
+
+  // ---------- Prettier — actual code formatting ----------
+  function formatCurrentFile() {
+    if (!extInstalled('esbenp.prettier-vscode')) { requireExtToast('Prettier - Code formatter'); return; }
+    const w = modeConfig[mode].editors[currentFile];
+    if (!w) return;
+    const lang = extLangFor(currentFile);
+    let formatted = null;
+    try {
+      if (lang === 'HTML') formatted = html_beautify(w.value, { indent_size: 2, wrap_line_length: 0, extra_liners: [] });
+      else if (lang === 'CSS') formatted = css_beautify(w.value, { indent_size: 2 });
+      else if (lang === 'JSON') formatted = js_beautify(w.value, { indent_size: 2 });
+      else if (lang.indexOf('JavaScript') === 0) formatted = js_beautify(w.value, { indent_size: 2, space_in_empty_paren: true });
+    } catch (err) {
+      showToast('⚠️ Hindi na-load ang Prettier library (kailangan ng internet connection). ' + err.message, 'danger');
+      return;
+    }
+    if (formatted == null) { showToast('Walang available na formatter para dito.', ''); return; }
+    if (formatted === w.value) { showToast('Maayos na ang format ✅', 'success'); return; }
+    w.cm.setValue(formatted);
+    showToast('Na-format gamit ang Prettier ✨', 'success');
+  }
+  formatBtn.addEventListener('click', formatCurrentFile);
+
+  // ---------- ESLint — real-time JS linting (JSHint engine under the hood) ----------
+  let lintProblems = [];
+  let lintDebounce = null;
+  const LINTABLE_WRAPPERS = [jsEditor, nodeEditor, webNodeEditor];
+
+  function scheduleLint(w) {
+    clearTimeout(lintDebounce);
+    lintDebounce = setTimeout(() => runLintFor(w), 450);
+  }
+
+  function runLintFor(w) {
+    lintProblems = [];
+    if (extInstalled('dbaeumer.vscode-eslint') && w && LINTABLE_WRAPPERS.includes(w)) {
+      try {
+        JSHINT(w.value, { esversion: 11, asi: true, browser: true, node: true, undef: false, unused: true });
+        (JSHINT.errors || []).filter(Boolean).forEach((e) => {
+          lintProblems.push({
+            line: e.line,
+            message: e.reason,
+            severity: e.code && e.code[0] === 'W' ? 'warning' : 'error'
+          });
+        });
+      } catch (err) { /* JSHint mismatches are ignored quietly */ }
+    }
+    updateProblemsUI();
+    if (!bottomPanel.classList.contains('collapsed') && errorTabBtn.classList.contains('active')) errorTabBtn.click();
+  }
+
+  LINTABLE_WRAPPERS.forEach((w) => { w.cm.on('change', () => scheduleLint(w)); });
+
+  // ---------- Live Server — nag-e-export ng tunay na Node.js server (walang dependencies) na nagse-serve sa http://localhost:8000 ----------
+  // Paalala: ang JavaScript sa loob ng browser ay hindi pwedeng magbukas ng aktwal na network port
+  // (security restriction ng lahat ng browser). Ang tanging tunay na paraan para magkaroon ng totoong
+  // "localhost:8000" na link na pwedeng i-paste kahit saan ay ang magpatakbo ng aktwal na server process
+  // sa labas ng browser. Kaya ang "Go Live" dito ay nag-do-download ng runnable server.js file.
+  const goLiveOverlay = document.getElementById('goLiveOverlay');
+  const goLiveCloseBtn = document.getElementById('goLiveCloseBtn');
+  let liveServerActive = false;
+
+  function buildLiveHtml() {
+    if (mode === 'web') {
+      const html = htmlEditor.value, css = cssEditor.value, js = jsEditor.value;
+      return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Live Preview — localhost:8000</title><style>${css}</style></head><body>${html}<script>${js}<\/script></body></html>`;
+    }
+    if (mode === 'css') {
+      const css = cssOnlyEditor.value;
+      const sampleHtml = `<div class="card"><h1>CSS Playground 🎨</h1><p>Live Server preview — subukan mo dito ang interactions.</p><button class="btn">Click Me!</button></div>`;
+      return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Live Preview — localhost:8000</title><style>${css}</style></head><body>${sampleHtml}</body></html>`;
+    }
+    return null;
+  }
+
+  // Ligtas na i-embed ang HTML string sa loob ng JS template literal ng server file
+  // (i-escape ang backslash, backtick, at ${ para hindi masira ang generated server.js)
+  function escapeForTemplateLiteral(str) {
+    return str
+      .replace(/\\/g, '\\\\')
+      .replace(/`/g, '\\`')
+      .replace(/\$\{/g, '\\${');
+  }
+
+  function buildServerJs(html) {
+    const embedded = escapeForTemplateLiteral(html);
+    return `// WebWise Studio — Live Server
+// Auto-generated na tunay na server. Walang kailangang i-install (pure Node.js "http" module lang).
+//
+// Paano patakbuhin:
+//   1. I-install ang Node.js kung wala ka pa: https://nodejs.org
+//   2. Buksan ang terminal sa folder kung saan naka-save itong file
+//   3. Patakbuhin: node server.js
+//   4. Buksan ang http://localhost:8000 sa kahit anong browser
+//
+// I-stop: Ctrl+C sa terminal.
+
+const http = require('http');
+
+const PORT = process.env.PORT || 8000;
+
+const PAGE_HTML = \`${embedded}\`;
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(PAGE_HTML);
+});
+
+server.listen(PORT, () => {
+  console.log('');
+  console.log('  🟢 Live Server running!');
+  console.log('  ➜  Local:   http://localhost:' + PORT);
+  console.log('');
+  console.log('  I-paste ang link sa itaas sa kahit anong browser.');
+  console.log('  Ctrl+C para i-stop.');
+  console.log('');
+});
+`;
+  }
+
+  function updateLiveServerStatus() {
+    if (!extInstalled('ritwickdey.liveserver')) { statusLiveServer.style.display = 'none'; return; }
+    statusLiveServer.style.display = 'inline-flex';
+    statusLiveServer.textContent = liveServerActive ? '🟢 server.js ready' : '🔴 Go Live';
+  }
+
+  function goLive() {
+    if (!extInstalled('ritwickdey.liveserver')) { requireExtToast('Live Server'); return; }
+    const html = buildLiveHtml();
+    if (html == null) { showToast('Available lang ang "Go Live" sa Web at CSS Playground mode.', 'danger'); return; }
+
+    const serverJs = buildServerJs(html);
+    downloadBlob(serverJs, 'server.js', 'text/javascript');
+
+    liveServerActive = true;
+    updateLiveServerStatus();
+    goLiveOverlay.classList.add('show');
+  }
+  goLiveBtn.addEventListener('click', goLive);
+  statusLiveServer.addEventListener('click', goLive);
+
+  // ---------- Go Live instructions modal ----------
+  function closeGoLiveModal() { goLiveOverlay.classList.remove('show'); }
+  goLiveCloseBtn.addEventListener('click', closeGoLiveModal);
+  goLiveOverlay.addEventListener('click', (e) => { if (e.target === goLiveOverlay) closeGoLiveModal(); });
+
+  // ---------- Todo Tree — real scan ng TODO / FIXME / BUG comments ----------
+  function scanTodos() {
+    const cfg = modeConfig[mode];
+    const results = [];
+    Object.keys(cfg.editors).forEach((key) => {
+      const f = cfg.files.find((f) => f.key === key);
+      const label = f ? f.label : key;
+      const lines = cfg.editors[key].value.split('\n');
+      lines.forEach((line, i) => {
+        const m = line.match(/\b(TODO|FIXME|BUG|HACK)\b\s*:?\s*(.*)/i);
+        if (m) results.push({ file: label, line: i + 1, tag: m[1].toUpperCase(), text: (m[2] || '').trim() });
+      });
+    });
+    return results;
+  }
+
+  function renderTodos() {
+    const items = scanTodos();
+    todoBadge.textContent = items.length;
+    todoBadge.style.display = items.length ? 'inline-block' : 'none';
+    if (!items.length) { consoleBody.innerHTML = '<div class="empty-hint">Walang TODO / FIXME / BUG na nahanap sa code 🎉</div>'; return; }
+    consoleBody.innerHTML = items.map((it) =>
+      `<div class="console-line"><span class="icon">📝</span><span><strong>${escapeHtml(it.file)}:${it.line}</strong> — [${escapeHtml(it.tag)}] ${escapeHtml(it.text || '(walang detalye)')}</span></div>`
+    ).join('');
+  }
+
+  todoTabBtn.addEventListener('click', () => {
+    document.querySelectorAll('.panel-tab').forEach((t) => t.classList.remove('active'));
+    todoTabBtn.classList.add('active');
+    renderTodos();
+    setPanelOpen(true);
+  });
+
+  // ---------- Sync visible/enabled state of all real features with installed extensions ----------
+  function syncExtensionFeatures() {
+    formatBtn.classList.toggle('ext-disabled', !extInstalled('esbenp.prettier-vscode'));
+    goLiveBtn.classList.toggle('ext-disabled', !extInstalled('ritwickdey.liveserver'));
+    todoTabBtn.style.display = extInstalled('gruntfuggly.todo-tree') ? 'flex' : 'none';
+    updateLiveServerStatus();
+    runLintFor(modeConfig[mode].editors[currentFile]);
+    if (todoTabBtn.classList.contains('active')) renderTodos();
+  }
+
+  // ========== POSTMESSAGE BRIDGE (Web/CSS/Node console logging) ==========
+  window.addEventListener('message', (e) => {
+    if (e.data && e.data.__consoleLog) {
+      lastLogs.push({ type: 'log', text: e.data.__consoleLog });
+      if (consoleTabBtn.classList.contains('active')) renderConsole(lastLogs);
+    }
+    if (e.data && e.data.__consoleError) {
+      hasError = true;
+      lastError = e.data.__consoleError;
+      updateProblemsUI();
+    }
+  });
+
+  // ========== NODE TERMINAL RENDERING ==========
+  function resetTerminal() {
+    terminalBody.innerHTML = '<div class="term-line term-hint">💡 Pindutin ang <strong>Run</strong> (o Ctrl+Enter) para patakbuhin ang script.js sa sandboxed Node-style console.</div>';
+  }
+
+  function renderTerminal(logs, errored) {
+    let html = '<div class="term-line"><span class="term-prompt">$</span> node script.js</div>';
+    if (!logs.length && !errored) {
+      html += '<div class="term-line term-hint">(walang console output)</div>';
+    } else {
+      logs.forEach((l) => {
+        const cls = l.type === 'error' ? 'term-line term-error' : 'term-line';
+        const icon = l.type === 'error' ? '✖' : '›';
+        html += `<div class="${cls}">${icon} ${escapeHtml(l.text)}</div>`;
+      });
+    }
+    html += '<div class="term-line"><span class="term-prompt">$</span><span class="term-cursor"></span></div>';
+    terminalBody.innerHTML = html;
+    terminalBody.scrollTop = terminalBody.scrollHeight;
+  }
+
+  // ========== JSON VALIDATION / FORMATTING ==========
+  function describeJson(val) {
+    let maxDepth = 0; let keyCount = 0;
+    (function walk(v, d) {
+      if (d > maxDepth) maxDepth = d;
+      if (Array.isArray(v)) { v.forEach((item) => walk(item, d + 1)); }
+      else if (v && typeof v === 'object') {
+        const ks = Object.keys(v);
+        keyCount += ks.length;
+        ks.forEach((k) => walk(v[k], d + 1));
+      }
+    })(val, 0);
+    const type = Array.isArray(val) ? `array (${val.length} items)` : (val && typeof val === 'object' ? `object (${keyCount} keys)` : typeof val);
+    return `${type}, depth ${maxDepth}`;
+  }
+
+  function highlightJsonCode(text) {
+    jsonOutputCode.textContent = text;
+    jsonOutputCode.className = 'language-json';
+    if (window.hljs) { jsonOutputCode.removeAttribute('data-highlighted'); hljs.highlightElement(jsonOutputCode); }
+  }
+
+  function renderJsonOutput(pretty, description, byteSize) {
+    jsonBanner.className = 'json-banner success';
+    jsonBanner.innerHTML = `✅ Valid JSON — ${description} · ${byteSize} bytes`;
+    highlightJsonCode(pretty);
+  }
+
+  function renderJsonError(message) {
+    jsonBanner.className = 'json-banner danger';
+    jsonBanner.innerHTML = `❌ Invalid JSON — ${escapeHtml(message)}`;
+    highlightJsonCode(jsonEditor.value);
+  }
+
+  function resetJsonOutput() {
+    jsonBanner.className = 'json-banner hint';
+    jsonBanner.textContent = '💡 Mag-type ng JSON sa Code tab, pindutin ang Run (o Ctrl+Enter) para i-validate at i-format.';
+    jsonOutputCode.textContent = '';
+    jsonOutputCode.className = 'language-json';
+  }
+
+  function runJsonMode() {
+    const raw = jsonEditor.value;
+    try {
+      const parsed = JSON.parse(raw);
+      const pretty = JSON.stringify(parsed, null, 2);
+      const byteSize = new Blob([raw]).size;
+      const description = describeJson(parsed);
+      renderJsonOutput(pretty, description, byteSize);
+      lastLogs.push({ type: 'log', text: '✅ Valid JSON — ' + description + ' · ' + byteSize + ' bytes' });
+    } catch (err) {
+      hasError = true;
+      lastError = err.message;
+      updateProblemsUI();
+      renderJsonError(err.message);
+    }
+  }
+
+  // ========== EXPORT / DOWNLOAD PAYLOAD BUILDER ==========
+  function buildExportPayload() {
+    if (mode === 'web') {
+      const html = htmlEditor.value;
+      const css = cssEditor.value;
+      const js = jsEditor.value;
+      const nodeJs = webNodeEditor.value;
+      const jsonRaw = webJsonEditor.value;
+
+      let dataLiteral = '{}';
+      try { if (jsonRaw.trim() !== '') { JSON.parse(jsonRaw); dataLiteral = jsonRaw; } } catch (e) { /* invalid JSON, gagamit na lang ng empty object */ }
+
+      const scriptParts = [
+        `const data = ${dataLiteral};`,
+        nodeJs ? `// server.js\n${nodeJs}` : '',
+        js ? `// script.js\n${js}` : ''
+      ].filter(Boolean).join('\n\n');
+
+      const combined = `<!DOCTYPE html>
+<html lang="tl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aking Website</title>
+<style>
+${css}
+</style>
+</head>
+<body>
+${html}
+<script>
+${scriptParts}
+<\/script>
+</body>
+</html>`;
+      return { content: combined, ext: 'html', mime: 'text/html', defaultBase: 'website', title: '📄 Aking Website', hasPreview: true, language: 'xml' };
+    }
+
+    if (mode === 'css') {
+      const css = cssOnlyEditor.value;
+      const html = `
+        <div class="card">
+          <h1>CSS Playground 🎨</h1>
+          <p>I-edit ang CSS sa editor at makikita mo ang changes dito.</p>
+          <button class="btn">Click Me!</button>
+        </div>
+      `;
+      const combined = `<!DOCTYPE html>
+<html lang="tl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CSS Playground Export</title>
+<style>
+${css}
+</style>
+</head>
+<body>
+${html}
+</body>
+</html>`;
+      return { content: combined, ext: 'html', mime: 'text/html', defaultBase: 'css-playground', title: '📄 CSS Playground', hasPreview: true, language: 'xml' };
+    }
+
+    if (mode === 'node') {
+      return { content: nodeEditor.value, ext: 'js', mime: 'text/javascript', defaultBase: 'script', title: '📄 Node Script', hasPreview: false, language: 'javascript' };
+    }
+
+    if (mode === 'json') {
+      let content = jsonEditor.value;
+      try { content = JSON.stringify(JSON.parse(content), null, 2); } catch (e) { /* keep raw kung invalid */ }
+      return { content, ext: 'json', mime: 'application/json', defaultBase: 'data', title: '📄 JSON Data', hasPreview: false, language: 'json' };
+    }
+  }
+
+  function openViewHtmlModal() {
+    const payload = buildExportPayload();
+    vhRawCombined = payload.content;
+    vhCurrentExt = payload.ext;
+    vhCurrentMime = payload.mime;
+    vhDefaultBase = payload.defaultBase;
+    viewHtmlTitle.textContent = payload.title;
+
+    vhTabPreview.style.display = payload.hasPreview ? '' : 'none';
+    vhPreviewFrame.srcdoc = payload.hasPreview ? payload.content : '';
+
+    vhCodeEl.textContent = payload.content;
+    vhCodeEl.className = 'language-' + payload.language;
+    if (window.hljs) { vhCodeEl.removeAttribute('data-highlighted'); hljs.highlightElement(vhCodeEl); }
+
+    vhGenerateBtn.textContent = '⬇️ I-generate bilang .' + payload.ext;
+    switchVhTab(payload.hasPreview ? 'preview' : 'code');
+    viewHtmlOverlay.classList.add('show');
+  }
+
+  function closeViewHtmlModal() {
+    viewHtmlOverlay.classList.remove('show');
+    vhPreviewFrame.srcdoc = '';
+  }
+
+  function switchVhTab(tab) {
+    const showPreview = tab === 'preview';
+    vhTabPreview.classList.toggle('active', showPreview);
+    vhTabCode.classList.toggle('active', !showPreview);
+    vhPreviewFrame.classList.toggle('active', showPreview);
+    vhCodePanel.classList.toggle('active', !showPreview);
+  }
+
+  function copyViewHtmlContent() {
+    const originalLabel = vhCopyBtn.textContent;
+    const markCopied = () => {
+      vhCopyBtn.textContent = '✅ Copied!';
+      vhCopyBtn.classList.add('copied');
+      showToast('Na-copy na ang buong code ✅', 'success');
+      setTimeout(() => { vhCopyBtn.textContent = originalLabel; vhCopyBtn.classList.remove('copied'); }, 1600);
+    };
+    const legacyFallbackCopy = () => {
+      const ta = document.createElement('textarea');
+      ta.value = vhRawCombined;
+      ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.left = '0'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      if (ok) { markCopied(); } else { showToast('Hindi na-copy. I-select mo manually sa Code tab (Ctrl+A, Ctrl+C).', 'danger'); }
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(vhRawCombined).then(markCopied).catch(legacyFallbackCopy);
+    } else { legacyFallbackCopy(); }
+  }
+
+  async function generateHtmlFile() {
+    if (!vhRawCombined) return;
+    const defaultBase = lastUsedFilename ? lastUsedFilename.replace(/\.[a-z0-9]+$/i, '') : vhDefaultBase;
+    const filename = await showFilenamePrompt(defaultBase, vhCurrentExt);
+    if (!filename) return;
+
+    lastUsedFilename = filename;
+    downloadBlob(vhRawCombined, filename, vhCurrentMime);
+
+    const originalLabel = vhGenerateBtn.textContent;
+    vhGenerateBtn.textContent = '✅ Nagawa na!';
+    vhGenerateBtn.classList.add('generated');
+    showToast('Nagenerate ang ' + filename + ' ✅', 'success');
+    setTimeout(() => { vhGenerateBtn.textContent = originalLabel; vhGenerateBtn.classList.remove('generated'); }, 1800);
+  }
+
+  async function quickGenerateFile() {
+    const payload = buildExportPayload();
+    vhRawCombined = payload.content;
+    vhCurrentExt = payload.ext;
+    vhCurrentMime = payload.mime;
+    vhDefaultBase = payload.defaultBase;
+
+    const defaultBase = lastUsedFilename ? lastUsedFilename.replace(/\.[a-z0-9]+$/i, '') : payload.defaultBase;
+    const filename = await showFilenamePrompt(defaultBase, payload.ext);
+    if (!filename) return;
+
+    lastUsedFilename = filename;
+    downloadBlob(payload.content, filename, payload.mime);
+
+    showToast('Nagenerate ang ' + filename + ' ✅', 'success');
+  }
+
+  quickGenerateBtn.addEventListener('click', quickGenerateFile);
+  viewHtmlBtn.addEventListener('click', openViewHtmlModal);
+  viewHtmlClose.addEventListener('click', closeViewHtmlModal);
+  viewHtmlOverlay.addEventListener('click', (e) => { if (e.target === viewHtmlOverlay) closeViewHtmlModal(); });
+  vhTabPreview.addEventListener('click', () => switchVhTab('preview'));
+  vhTabCode.addEventListener('click', () => switchVhTab('code'));
+  vhCopyBtn.addEventListener('click', copyViewHtmlContent);
+  vhGenerateBtn.addEventListener('click', generateHtmlFile);
+
+  // ========== RUN FUNCTIONS ==========
+  function runWeb() {
+    const html = htmlEditor.value;
+    const css = cssEditor.value;
+    const js = jsEditor.value;
+    const nodeJs = webNodeEditor.value;
+    const jsonRaw = webJsonEditor.value;
+
+    let jsonParseError = null;
+    let dataLiteral = '{}';
+    if (jsonRaw.trim() !== '') {
+      try { JSON.parse(jsonRaw); dataLiteral = jsonRaw; } catch (err) { jsonParseError = err.message; }
+    }
+
+    const wrappedJs = (js || nodeJs) ? `
+      const __send = (type, msg) => parent.postMessage({ ['__console' + type]: String(msg) }, '*');
+      const _origLog = console.log;
+      console.log = function(...args){ __send('Log', args.map(a => (typeof a === 'string' ? a : (function(){ try { return JSON.stringify(a); } catch(e){ return String(a); } })())).join(' ')); _origLog.apply(console, args); };
+      window.onerror = function(msg){ __send('Error', msg); return true; };
+
+      const process = { env: {}, argv: ['node','server.js'], version: 'v20.11.0 (simulated)', platform: 'browser-sandbox', exit: function(){}, cwd: function(){ return '/sandbox'; } };
+      const require = function(name){ throw new Error("Module '" + name + "' ay hindi available sa browser sandbox."); };
+
+      ${jsonParseError ? `__send('Error', 'data.json: ' + ${JSON.stringify(jsonParseError)});` : ''}
+      const data = ${dataLiteral};
+
+      try { ${nodeJs} } catch(err) { __send('Error', 'server.js: ' + err.message); }
+      try { ${js} } catch(err) { __send('Error', 'script.js: ' + err.message); }
+    ` : '';
+
+    const output = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>${css}</style></head><body>${html}<script>${wrappedJs}<\/script></body></html>`;
+    preview.srcdoc = output;
+  }
+
+  function runCssPlayground() {
+    const css = cssOnlyEditor.value;
+    const sampleHtml = `
+      <div class="card">
+        <h1>CSS Playground 🎨</h1>
+        <p>I-edit ang CSS sa editor at makikita mo ang changes dito.</p>
+        <button class="btn">Click Me!</button>
+      </div>
+    `;
+    const output = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${css}</style></head><body>${sampleHtml}</body></html>`;
+    preview.srcdoc = output;
+  }
+
+  function runNode() {
+    const code = nodeEditor.value;
+    const wrapped = `<!DOCTYPE html><html><head></head><body><script>
+      const __fmt = (a) => { if (typeof a === 'string') return a; try { return JSON.stringify(a, null, 2); } catch(e) { try { return String(a); } catch(e2) { return '[Unserializable]'; } } };
+      const __send = (type, msg) => parent.postMessage({ ['__console' + type]: String(msg) }, '*');
+      console.log = (...a) => __send('Log', a.map(__fmt).join(' '));
+      console.info = console.log;
+      console.warn = (...a) => __send('Log', '⚠️ ' + a.map(__fmt).join(' '));
+      console.error = (...a) => __send('Error', a.map(__fmt).join(' '));
+      window.onerror = function(msg){ __send('Error', String(msg)); return true; };
+      window.addEventListener('unhandledrejection', function(e){ __send('Error', 'Unhandled Promise Rejection: ' + (e.reason && e.reason.message ? e.reason.message : e.reason)); });
+      const process = { env: {}, argv: ['node','script.js'], version: 'v20.11.0 (simulated)', platform: 'browser-sandbox', exit: function(){}, cwd: function(){ return '/sandbox'; } };
+      const require = function(name){ throw new Error("Module '" + name + "' ay hindi available sa browser sandbox. Node built-ins tulad ng fs/http ay hindi supported dito."); };
+      (async () => {
+        try {
+          ${code}
+        } catch (err) {
+          __send('Error', err && err.message ? err.message : String(err));
+        }
+      })();
+    <\/script></body></html>`;
+    preview.srcdoc = wrapped;
+  }
+
+  function setRunning(isRunning) {
+    runBtn.classList.toggle('is-running', isRunning);
+    const labelEl = runBtn.querySelector('.run-label');
+    if (labelEl) labelEl.textContent = isRunning ? 'Running...' : 'Run';
+    setRunState(isRunning ? 'running' : 'ready');
+  }
+
+  function completeRun(message, type) {
+    setRunning(false);
+    setRunState(type === 'danger' ? 'error' : 'success');
+    showToast(message, type || 'success');
+    setView('output');
+    setPanelOpen(true);
+    setTimeout(() => renderConsole(lastLogs), 150);
+  }
+
+  function runCode() {
+    lastLogs = [];
+    hasError = false;
+    lastError = '';
+    updateProblemsUI();
+    renderConsole([]);
+    setRunning(true);
+
+    if (mode === 'web') {
+      runWeb();
+      completeRun('Web preview updated ✅', 'success');
+    } else if (mode === 'css') {
+      runCssPlayground();
+      completeRun('CSS updated ✅', 'success');
+    } else if (mode === 'node') {
+      runNode();
+      setTimeout(() => {
+        renderTerminal(lastLogs, hasError);
+        completeRun(hasError ? 'May error sa script ⚠️' : 'Na-execute ang script ✅', hasError ? 'danger' : 'success');
+      }, 350);
+    } else if (mode === 'json') {
+      const raw = jsonEditor.value;
+      if (raw.trim() === '') {
+        resetJsonOutput();
+        completeRun('Walang JSON na i-va-validate', 'danger');
+        return;
+      }
+      runJsonMode();
+      completeRun(hasError ? 'Invalid JSON ❌' : 'JSON is valid ✅', hasError ? 'danger' : 'success');
+    }
+  }
+
+  // ========== CLEAR FUNCTION ==========
+  async function clearText() {
+    const cfg = modeConfig[mode];
+    const editorsArr = Object.values(cfg.editors);
+    const isEmpty = editorsArr.every((w) => w.value.trim() === '');
+
+    if (isEmpty) { showToast('Wala nang laman para i-clear!', 'danger'); return; }
+
+    const confirmed = await showConfirm('Clear all code? (Hindi ito ma-undo)');
+    if (confirmed) {
+      editorsArr.forEach((w) => { w.value = ''; });
+      resetOutputForMode();
+      lastLogs = [];
+      hasError = false;
+      lastError = '';
+      updateProblemsUI();
+      renderConsole([]);
+      cfg.editors[currentFile].focus();
+      showToast('Code cleared ✅', 'success');
+    }
+  }
+
+  // ========== EVENT LISTENERS ==========
+  runBtn.addEventListener('click', runCode);
+
+  // ========== MENU BAR (File / Edit / View / Run / Terminal / Help) ==========
+  const menubar = document.getElementById('menubar');
+  const menuDropdownOverlay = document.getElementById('menuDropdownOverlay');
+  const menuNames = ['file', 'edit', 'view', 'run', 'terminal', 'help'];
+  let openMenuName = null;
+
+  function closeAllMenus() {
+    menuNames.forEach((n) => document.getElementById('dd-' + n).classList.remove('show'));
+    document.querySelectorAll('.menubar-item').forEach((m) => m.classList.remove('open'));
+    menuDropdownOverlay.classList.remove('show');
+    openMenuName = null;
+  }
+
+  function openMenu(name, triggerEl) {
+    closeAllMenus();
+    const dd = document.getElementById('dd-' + name);
+    const rect = triggerEl.getBoundingClientRect();
+    dd.style.left = rect.left + 'px';
+    dd.classList.add('show');
+    triggerEl.classList.add('open');
+    menuDropdownOverlay.classList.add('show');
+    openMenuName = name;
+  }
+
+  menubar.addEventListener('click', (e) => {
+    const item = e.target.closest('.menubar-item');
+    if (!item) return;
+    const name = item.dataset.menu;
+    if (openMenuName === name) { closeAllMenus(); } else { openMenu(name, item); }
+  });
+
+  menuDropdownOverlay.addEventListener('click', closeAllMenus);
+
+  document.querySelectorAll('.menu-dropdown').forEach((dd) => {
+    dd.addEventListener('click', (e) => {
+      const item = e.target.closest('.menu-dd-item');
+      if (!item) return;
+      runCommand(item.dataset.cmd);
+      closeAllMenus();
+    });
+  });
+
+  // ========== COMMAND ROUTER (shared by menu bar + command palette) ==========
+  function runCommand(cmd) {
+    switch (cmd) {
+      case 'new-web': selectMode('web'); break;
+      case 'new-css': selectMode('css'); break;
+      case 'new-node': selectMode('node'); break;
+      case 'new-json': selectMode('json'); break;
+      case 'download': quickGenerateFile(); break;
+      case 'view-full': openViewHtmlModal(); break;
+      case 'undo': modeConfig[mode].editors[currentFile].cm.undo(); break;
+      case 'redo': modeConfig[mode].editors[currentFile].cm.redo(); break;
+      case 'clear-code': clearText(); break;
+      case 'format-doc': formatCurrentFile(); break;
+      case 'go-live': goLive(); break;
+      case 'toggle-sidebar': toggleSidebar(); break;
+      case 'toggle-panel': togglePanel(); break;
+      case 'view-search': setSidebarOpen(true); showSidebarView('search'); break;
+      case 'view-extensions': setSidebarOpen(true); showSidebarView('extensions'); break;
+      case 'view-explorer': setSidebarOpen(true); showSidebarView('explorer'); break;
+      case 'palette': openPalette(); break;
+      case 'view-output': setView('output'); break;
+      case 'view-problems': setPanelOpen(true); errorTabBtn.click(); break;
+      case 'run': runCode(); break;
+      case 'new-terminal': setPanelOpen(true); consoleTabBtn.click(); break;
+      case 'clear-terminal': lastLogs = []; renderConsole([]); showToast('Na-clear ang terminal ✅', 'success'); break;
+      case 'about': showAbout(); break;
+      case 'docs': showToast('Offline demo — walang external docs dito, pero puwede mo itong libreng i-explore! 🙂', ''); break;
+    }
+  }
+
+  // ========== COMMAND PALETTE ==========
+  const paletteOverlay = document.getElementById('paletteOverlay');
+  const paletteInput = document.getElementById('paletteInput');
+  const paletteList = document.getElementById('paletteList');
+  let paletteHighlight = 0;
+  let paletteFiltered = [];
+
+  const PALETTE_COMMANDS = [
+    { label: 'Run Code', icon: '▷', kbd: 'Ctrl+Enter', cmd: 'run' },
+    { label: 'Clear Code', icon: '🗑', kbd: '', cmd: 'clear-code' },
+    { label: 'Format Document (Prettier)', icon: '✨', kbd: 'Shift+Alt+F', cmd: 'format-doc' },
+    { label: 'Go Live (Live Server — localhost:8000)', icon: '🌐', kbd: '', cmd: 'go-live' },
+    { label: 'View: Output', icon: '🖥️', kbd: '', cmd: 'view-output' },
+    { label: 'View: Problems', icon: '⚠️', kbd: '', cmd: 'view-problems' },
+    { label: 'View: Full Code / Export', icon: '⤢', kbd: '', cmd: 'view-full' },
+    { label: 'Download Current File', icon: '⬇', kbd: 'Ctrl+S', cmd: 'download' },
+    { label: 'Toggle Sidebar', icon: '📁', kbd: 'Ctrl+B', cmd: 'toggle-sidebar' },
+    { label: 'View: Explorer', icon: '📁', kbd: '', cmd: 'view-explorer' },
+    { label: 'View: Search', icon: '🔍', kbd: 'Ctrl+Shift+F', cmd: 'view-search' },
+    { label: 'View: Extensions', icon: '🧩', kbd: 'Ctrl+Shift+X', cmd: 'view-extensions' },
+    { label: 'Toggle Terminal Panel', icon: '⌨️', kbd: 'Ctrl+`', cmd: 'toggle-panel' },
+    { label: 'Clear Terminal', icon: '🧹', kbd: '', cmd: 'clear-terminal' },
+    { label: 'Switch Workspace: Web (HTML+CSS+JS)', icon: '🌐', kbd: '', cmd: 'new-web' },
+    { label: 'Switch Workspace: CSS Playground', icon: '🎨', kbd: '', cmd: 'new-css' },
+    { label: 'Switch Workspace: Node.js Runtime', icon: '🟢', kbd: '', cmd: 'new-node' },
+    { label: 'Switch Workspace: JSON Formatter', icon: '📋', kbd: '', cmd: 'new-json' },
+    { label: 'Undo', icon: '↩', kbd: 'Ctrl+Z', cmd: 'undo' },
+    { label: 'Redo', icon: '↪', kbd: 'Ctrl+Y', cmd: 'redo' },
+    { label: 'About WebWise Studio', icon: 'ℹ️', kbd: '', cmd: 'about' }
+  ];
+
+  function renderPalette(query) {
+    const q = (query || '').toLowerCase().trim();
+    paletteFiltered = PALETTE_COMMANDS.filter((c) => c.label.toLowerCase().includes(q));
+    paletteHighlight = 0;
+    if (paletteFiltered.length === 0) {
+      paletteList.innerHTML = '<div class="palette-empty">Walang command na tugma.</div>';
+      return;
+    }
+    paletteList.innerHTML = paletteFiltered.map((c, i) =>
+      `<div class="palette-item${i === 0 ? ' highlighted' : ''}" data-index="${i}">
+        <span class="pi-icon">${c.icon}</span>
+        <span class="pi-label">${c.label}</span>
+        ${c.kbd ? `<span class="pi-kbd">${c.kbd}</span>` : ''}
+      </div>`
+    ).join('');
+  }
+
+  function openPalette() {
+    paletteOverlay.classList.add('show');
+    paletteInput.value = '';
+    renderPalette('');
+    setTimeout(() => paletteInput.focus(), 30);
+  }
+
+  function closePalette() { paletteOverlay.classList.remove('show'); }
+
+  function executePaletteHighlighted() {
+    const c = paletteFiltered[paletteHighlight];
+    if (!c) return;
+    closePalette();
+    runCommand(c.cmd);
+  }
+
+  paletteInput.addEventListener('input', () => renderPalette(paletteInput.value));
+  paletteInput.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      paletteHighlight = Math.min(paletteHighlight + 1, paletteFiltered.length - 1);
+      updatePaletteHighlight();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      paletteHighlight = Math.max(paletteHighlight - 1, 0);
+      updatePaletteHighlight();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      executePaletteHighlighted();
+    } else if (e.key === 'Escape') {
+      closePalette();
+    }
+  });
+
+  function updatePaletteHighlight() {
+    document.querySelectorAll('.palette-item').forEach((el, i) => el.classList.toggle('highlighted', i === paletteHighlight));
+  }
+
+  paletteList.addEventListener('click', (e) => {
+    const item = e.target.closest('.palette-item');
+    if (!item) return;
+    paletteHighlight = Number(item.dataset.index);
+    executePaletteHighlighted();
+  });
+
+  paletteOverlay.addEventListener('click', (e) => { if (e.target === paletteOverlay) closePalette(); });
+
+  document.getElementById('paletteBtn').addEventListener('click', openPalette);
+
+  // ========== KEYBOARD SHORTCUTS ==========
+  document.addEventListener('keydown', (e) => {
+    const mod = e.ctrlKey || e.metaKey;
+
+    if (e.key === 'Escape') {
+      closePalette();
+      closeAllMenus();
+      hideAbout();
+    }
+    if (mod && e.key === 'Enter') { e.preventDefault(); runCode(); }
+    if (mod && (e.key === 'b' || e.key === 'B')) { e.preventDefault(); toggleSidebar(); }
+    if (mod && e.key === '`') { e.preventDefault(); togglePanel(); }
+    if (mod && e.shiftKey && (e.key === 'P' || e.key === 'p')) { e.preventDefault(); openPalette(); }
+    if (mod && e.shiftKey && (e.key === 'F' || e.key === 'f')) { e.preventDefault(); setSidebarOpen(true); showSidebarView('search'); }
+    if (mod && e.shiftKey && (e.key === 'X' || e.key === 'x')) { e.preventDefault(); setSidebarOpen(true); showSidebarView('extensions'); }
+    if (mod && (e.key === 's' || e.key === 'S')) { e.preventDefault(); quickGenerateFile(); }
+    if (e.altKey && e.shiftKey && (e.key === 'F' || e.key === 'f')) { e.preventDefault(); formatCurrentFile(); }
+
+    if ((e.key === 'Enter' || e.key === ' ') &&
+        (e.target.classList.contains('mode-item') || e.target.classList.contains('filetab') || e.target.classList.contains('tree-file'))) {
+      e.preventDefault();
+      e.target.click();
+    }
+  });
+
+  // ========== INITIALIZATION ==========
+  updateExtBadge();
+  switchMode('web');
+  runCode();
+  syncExtensionFeatures();
+</script>
+
+</body>
+</html>
